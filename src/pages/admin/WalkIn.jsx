@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, fmtMoney } from '../../lib/api.js'
 import { Button, Card, Field, Input, Select, Textarea } from '../../components/ui.jsx'
+import { SPECIES } from '../../lib/species.js'
 
 const empty = {
   owner: { full_name: '', phone: '', address: '' },
@@ -52,36 +53,47 @@ export default function WalkIn() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="text-2xl font-extrabold text-charcoal-900">Walk-in / Emergency registration</h1>
-        <p className="text-sm text-charcoal-400">Create a client profile, pet, and booking on the spot — no account or login needed. Perfect for ER cases that can't wait.</p>
+        <p className="mt-1 text-sm text-charcoal-500 leading-relaxed">
+          Create a client profile, pet, and booking on the spot — no account or login needed. Perfect for ER cases that can't wait.
+        </p>
       </div>
 
       {result && (
-        <div className="rounded-2xl border border-teal-600/30 bg-teal-50 p-5">
+        <div className="rounded-2xl border border-teal-600/30 bg-teal-50 p-5 animate-slide-up">
           <p className="font-bold text-teal-700">✓ Walk-in registered — {result.reference_code}</p>
-          <p className="mt-1 text-sm text-teal-700/80">Owner #{result.owner_id}, pet #{result.pet_id}, booking #{result.booking_id}. Find it under Appointments.</p>
+          <p className="mt-1.5 text-sm text-teal-700/80">
+            Owner #{result.owner_id}, pet #{result.pet_id}, booking #{result.booking_id}. Find it under Appointments.
+          </p>
+          <p className="mt-2 rounded-xl bg-white/70 px-3.5 py-2.5 text-xs font-semibold text-teal-700">
+            📇 The client was automatically added to <span className="underline">Clients</span> and the pet to <span className="underline">Customer Pets</span> — no extra step needed.
+          </p>
         </div>
       )}
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
+      )}
 
-      <Card className="p-6">
+      {/* ── Owner ── */}
+      <Card className="p-7">
         <h2 className="font-bold text-charcoal-900">1 · Owner</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
           <Field label="Full name *"><Input value={form.owner.full_name} onChange={set('owner', 'full_name')} placeholder="Walk-in client" /></Field>
           <Field label="Phone *"><Input value={form.owner.phone} onChange={set('owner', 'phone')} placeholder="0917 000 0000" /></Field>
           <Field label="Address"><Input value={form.owner.address} onChange={set('owner', 'address')} placeholder="City / barangay" /></Field>
         </div>
       </Card>
 
-      <Card className="p-6">
+      {/* ── Pet ── */}
+      <Card className="p-7">
         <h2 className="font-bold text-charcoal-900">2 · Pet</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
           <Field label="Name *"><Input value={form.pet.name} onChange={set('pet', 'name')} placeholder="Rex" /></Field>
           <Field label="Species">
             <Select value={form.pet.species} onChange={set('pet', 'species')}>
-              <option value="dog">Dog</option><option value="cat">Cat</option><option value="bird">Bird</option><option value="rabbit">Rabbit</option><option value="other">Other</option>
+              {SPECIES.map((sp) => <option key={sp.value} value={sp.value}>{sp.label}</option>)}
             </Select>
           </Field>
           <Field label="Breed"><Input value={form.pet.breed} onChange={set('pet', 'breed')} placeholder="Aspin" /></Field>
@@ -94,9 +106,10 @@ export default function WalkIn() {
         </div>
       </Card>
 
-      <Card className="p-6">
+      {/* ── Booking ── */}
+      <Card className="p-7">
         <h2 className="font-bold text-charcoal-900">3 · Booking</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field label="Service *" hint="Includes admin-only services like surgery, confinement, and emergency care.">
               <Select value={form.booking.service_id} onChange={set('booking', 'service_id')}>
@@ -113,8 +126,19 @@ export default function WalkIn() {
               {slots.slots.map((t) => {
                 const taken = slots.taken.includes(t)
                 return (
-                  <button key={t} type="button" disabled={taken} onClick={() => setForm((f) => ({ ...f, booking: { ...f.booking, booking_time: t } }))}
-                    className={`rounded-md border px-1 py-1.5 text-xs font-semibold ${form.booking.booking_time === t ? 'border-teal-600 bg-teal-600 text-white' : taken ? 'border-sage-200 text-charcoal-400 line-through' : 'border-sage-200 hover:border-teal-600'}`}>
+                  <button
+                    key={t}
+                    type="button"
+                    disabled={taken}
+                    onClick={() => setForm((f) => ({ ...f, booking: { ...f.booking, booking_time: t } }))}
+                    className={`rounded-xl border px-1.5 py-2 text-xs font-semibold transition-all duration-200 ${
+                      form.booking.booking_time === t
+                        ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
+                        : taken
+                          ? 'border-sage-200 text-charcoal-300 line-through'
+                          : 'border-sage-200 hover:border-teal-600 hover:bg-teal-50'
+                    }`}
+                  >
                     {t}
                   </button>
                 )
@@ -133,7 +157,9 @@ export default function WalkIn() {
             <Field label="Notes"><Textarea value={form.booking.notes} onChange={set('booking', 'notes')} placeholder="Symptom notes, ER context…" /></Field>
           </div>
         </div>
-        <Button variant="accent" className="mt-4" onClick={submit} disabled={busy}>{busy ? 'Registering…' : 'Register walk-in & book'}</Button>
+        <Button variant="accent" className="mt-5" onClick={submit} disabled={busy}>
+          {busy ? 'Registering…' : 'Register walk-in & book'}
+        </Button>
       </Card>
     </div>
   )

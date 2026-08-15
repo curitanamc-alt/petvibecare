@@ -1,34 +1,92 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Brand palette ── */
   --color-teal-50: #eef6f6;
   --color-teal-100: #d7eaea;
+  --color-teal-200: #b3d6d8;
+  --color-teal-300: #82b8bc;
+  --color-teal-400: #4f969b;
+  --color-teal-500: #2a7a80;
   --color-teal-600: #0a4d52;
   --color-teal-700: #084144;
   --color-teal-800: #063538;
+  --color-teal-900: #042628;
 
   --color-sage-50: #f4faf7;
   --color-sage-100: #e8f3ee;
   --color-sage-200: #d3e7dd;
+  --color-sage-300: #b8d8c8;
 
+  --color-amber-50: #fff8f0;
+  --color-amber-100: #ffedd5;
+  --color-amber-200: #ffd9ad;
+  --color-amber-300: #ffc078;
   --color-amber-400: #ffa45e;
   --color-amber-500: #ff8c42;
   --color-amber-600: #f0741f;
 
-  --color-charcoal-900: #1f2937;
-  --color-charcoal-600: #4b5563;
+  --color-charcoal-50: #f9fafb;
+  --color-charcoal-100: #f3f4f6;
+  --color-charcoal-200: #e5e7eb;
+  --color-charcoal-300: #d1d5db;
   --color-charcoal-400: #9ca3af;
+  --color-charcoal-500: #6b7280;
+  --color-charcoal-600: #4b5563;
+  --color-charcoal-700: #374151;
+  --color-charcoal-800: #1f2937;
+  --color-charcoal-900: #111827;
 
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  /* ── Typography ── */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* ── Shadows ── */
+  --shadow-card: 0 1px 3px rgba(10, 77, 82, 0.04), 0 4px 12px rgba(10, 77, 82, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(10, 77, 82, 0.08), 0 12px 32px rgba(10, 77, 82, 0.1);
+  --shadow-elevated: 0 8px 24px rgba(10, 77, 82, 0.1), 0 20px 48px rgba(10, 77, 82, 0.08);
+
+  /* ── Radius ── */
+  --radius-card: 1rem;
+  --radius-button: 0.625rem;
+  --radius-pill: 9999px;
+
+  /* ── Animations ── */
+  --animate-fade-in: fade-in 0.4s ease-out both;
+  --animate-slide-up: slide-up 0.5s ease-out both;
+  --animate-scale-in: scale-in 0.3s ease-out both;
 }
 
+/* ── Keyframes ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Base ── */
 html {
   font-family: var(--font-sans);
   color: var(--color-charcoal-900);
   background: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+  line-height: 1.6;
 }
 
 body {
@@ -42,4 +100,79 @@ body {
 ::selection {
   background: var(--color-amber-500);
   color: #fff;
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-charcoal-300);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-charcoal-400);
+}
+
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 2px solid var(--color-teal-500);
+  outline-offset: 2px;
+}
+
+/* ── Skeleton shimmer utility ── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-sage-100) 25%,
+    var(--color-sage-200) 50%,
+    var(--color-sage-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* ── Hide scrollbar on mobile navs ── */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Printable reports (Reports.jsx) ── */
+@media print {
+  @page {
+    margin: 1.4cm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .print-report {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    color: #111827;
+  }
+  .print-report table {
+    color: #111827;
+  }
 }

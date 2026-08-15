@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './lib/auth.jsx'
 import { Spinner } from './components/ui.jsx'
+import { PageTransition } from './components/PageTransition.jsx'
 import PublicLayout from './components/PublicLayout.jsx'
 import Landing from './pages/Landing.jsx'
 import Services from './pages/Services.jsx'
@@ -18,8 +19,12 @@ import Profile from './pages/portal/Profile.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
 import AdminHome from './pages/admin/AdminHome.jsx'
 import Appointments from './pages/admin/Appointments.jsx'
+import AdminServices from './pages/admin/Services.jsx'
 import AdminPets from './pages/admin/AdminPets.jsx'
 import AdminPetDetail from './pages/admin/AdminPetDetail.jsx'
+import Clients from './pages/admin/Clients.jsx'
+import ClientDetail from './pages/admin/ClientDetail.jsx'
+import Reports from './pages/admin/Reports.jsx'
 import Schedule from './pages/admin/Schedule.jsx'
 import Analytics from './pages/admin/Analytics.jsx'
 import WalkIn from './pages/admin/WalkIn.jsx'
@@ -42,34 +47,38 @@ export default function App() {
   return (
     <Routes>
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<Landing />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/bundles" element={<Bundles />} />
-        <Route path="/book" element={<Book />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+        <Route path="/services" element={<PageTransition><Services /></PageTransition>} />
+        <Route path="/pricing" element={<PageTransition><Pricing /></PageTransition>} />
+        <Route path="/bundles" element={<PageTransition><Bundles /></PageTransition>} />
+        <Route path="/book" element={<PageTransition><Book /></PageTransition>} />
+        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+        <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
       </Route>
 
       <Route path="/portal" element={<RequireClient />}>
         <Route element={<PortalLayout />}>
-          <Route index element={<PortalHome />} />
-          <Route path="pets" element={<MyPets />} />
-          <Route path="pets/:id" element={<PetDetail />} />
-          <Route path="bookings" element={<MyBookings />} />
-          <Route path="profile" element={<Profile />} />
+          <Route index element={<PageTransition><PortalHome /></PageTransition>} />
+          <Route path="pets" element={<PageTransition><MyPets /></PageTransition>} />
+          <Route path="pets/:id" element={<PageTransition><PetDetail /></PageTransition>} />
+          <Route path="bookings" element={<PageTransition><MyBookings /></PageTransition>} />
+          <Route path="profile" element={<PageTransition><Profile /></PageTransition>} />
         </Route>
       </Route>
 
       <Route path="/admin" element={<RequireStaff />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<AdminHome />} />
-          <Route path="appointments" element={<Appointments />} />
-          <Route path="pets" element={<AdminPets />} />
-          <Route path="pets/:id" element={<AdminPetDetail />} />
-          <Route path="schedule" element={<Schedule />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="walkin" element={<WalkIn />} />
+          <Route index element={<PageTransition><AdminHome /></PageTransition>} />
+          <Route path="appointments" element={<PageTransition><Appointments /></PageTransition>} />
+          <Route path="services" element={<PageTransition><AdminServices /></PageTransition>} />
+          <Route path="pets" element={<PageTransition><AdminPets /></PageTransition>} />
+          <Route path="pets/:id" element={<PageTransition><AdminPetDetail /></PageTransition>} />
+          <Route path="clients" element={<PageTransition><Clients /></PageTransition>} />
+          <Route path="clients/:id" element={<PageTransition><ClientDetail /></PageTransition>} />
+          <Route path="reports" element={<PageTransition><Reports /></PageTransition>} />
+          <Route path="schedule" element={<PageTransition><Schedule /></PageTransition>} />
+          <Route path="analytics" element={<PageTransition><Analytics /></PageTransition>} />
+          <Route path="walkin" element={<PageTransition><WalkIn /></PageTransition>} />
         </Route>
       </Route>
 

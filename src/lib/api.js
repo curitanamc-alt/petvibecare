@@ -28,23 +28,67 @@ export const session = {
   },
 }
 
-let mockMode = session.mock || new URLSearchParams(location.search).get('mock') === '1'
+// Mock mode is on when explicitly forced (?mock=1) or when a previous probe
+// found the server unreachable (stored flag). We always re-probe (unless
+// forced) so the app recovers automatically once the server comes back up
+// instead of staying stuck in demo mode forever.
+const forcedMock = new URLSearchParams(location.search).get('mock') === '1'
+let mockMode = session.mock || forcedMock
+
+if (!forcedMock) {
+  const probe = new AbortController()
+  const probeTimer = setTimeout(() => probe.abort(), 1500) // 1.5s max
+  fetch('/api/demo-accounts', { signal: probe.signal })
+    .then((r) => {
+      clearTimeout(probeTimer)
+      if (r.ok) {
+        // Server is reachable — prefer live mode and drop any stale mock flag
+        if (mockMode) {
+          mockMode = false
+          session.setMock(false)
+        }
+      } else if (r.status >= 500) {
+        mockMode = true
+        session.setMock(true)
+      }
+    })
+    .catch(() => {
+      clearTimeout(probeTimer)
+      // Server unreachable — switch to mock immediately
+      mockMode = true
+      session.setMock(true)
+    })
+}
 
 async function request(method, path, body, token) {
-  if (mockMode) return mockRequest(method, path, body, token)
-  const headers = { 'Content-Type': 'application/json' }
+  // Resolve the token up front so both live and mock requests authenticate
+  // the same way (mock previously dropped it, causing 401s on every authed call)
   const tk = token ?? session.token
+  if (mockMode) return mockRequest(method, path, body, tk)
+
+  const headers = { 'Content-Type': 'application/json' }
   if (tk) headers.Authorization = `Bearer ${tk}`
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 3000)
+
   let res
   try {
-    res = await fetch(`/api${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined })
+    res = await fetch(`/api${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    })
   } catch {
+    clearTimeout(timer)
     return fallbackToMock(method, path, body, tk)
   }
+  clearTimeout(timer)
+
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     if (res.status >= 500) {
-      // backend down or crashed (dev proxy surfaces this as 500) — fall back to demo mode
       return fallbackToMock(method, path, body, tk)
     }
     const e = new Error(data?.error || `Request failed (${res.status})`)
@@ -86,6 +130,7 @@ export const api = {
   // client
   myProfile: () => get('/me'),
   updateProfile: (data) => put('/me', data),
+  changePassword: (data) => patch('/me/password', data),
   myPets: () => get('/me'),
   createPet: (data) => post('/pets', data),
   updatePet: (id, data) => put(`/pets/${id}`, data),
@@ -93,8 +138,16 @@ export const api = {
   petRecords: (id) => get(`/pets/${id}/records`),
   myBookings: () => get('/bookings'),
   createBooking: (data) => post('/bookings', data),
+  cancelBooking: (id) => post(`/bookings/${id}/cancel`),
+  requestReschedule: (id, data) => post(`/bookings/${id}/reschedule-request`, data),
+  cancelRescheduleRequest: (id, reqId) => del(`/bookings/${id}/reschedule-request/${reqId}`),
+  bookingHistory: (id) => get(`/bookings/${id}/history`),
 
   // admin
+  adminServices: () => get('/admin/services'),
+  adminCreateService: (data) => post('/admin/services', data),
+  adminUpdateService: (id, data) => patch(`/admin/services/${id}`, data),
+  adminToggleService: (id) => patch(`/admin/services/${id}/toggle`),
   adminStats: () => get('/admin/stats'),
   adminBookings: (params = '') => get('/admin/bookings' + params),
   adminBooking: (id) => get(`/admin/bookings/${id}`),
@@ -112,6 +165,19 @@ export const api = {
   adminWalkIn: (data) => post('/admin/walkin', data),
   adminAnalytics: () => get('/admin/analytics'),
   adminNotifications: () => get('/admin/notifications'),
+  adminOwners: (params = '') => get('/admin/owners' + params),
+  adminOwner: (id) => get(`/admin/owners/${id}`),
+  adminUpdateOwner: (id, data) => patch(`/admin/owners/${id}`, data),
+  adminSetOwnerStatus: (id, status) => patch(`/admin/owners/${id}/status`, { status }),
+  adminResetOwnerPassword: (id) => post(`/admin/owners/${id}/reset-password`),
+  adminPetRecords: (id) => get(`/admin/pets/${id}/records`),
+  adminUpdateRecord: (id, data) => patch(`/admin/records/${id}`, data),
+  adminDeleteRecord: (id) => del(`/admin/records/${id}`),
+  adminRescheduleBooking: (id, data) => patch(`/admin/bookings/${id}/reschedule`, data),
+  adminAssignBooking: (id, staff_id) => patch(`/admin/bookings/${id}/assign`, { staff_id }),
+  adminBookingHistory: (id) => get(`/admin/bookings/${id}/history`),
+  adminRescheduleRequest: (id, reqId, action) => patch(`/admin/bookings/${id}/reschedule-request/${reqId}`, { action }),
+  reports: (type, params = '') => get(`/admin/reports/${type}` + params),
 }
 
 export const fmtMoney = (s) => (s.price_max ? `₱${s.price_min.toLocaleString()}–${s.price_max.toLocaleString()}` : `₱${s.price_min.toLocaleString()}`)

@@ -27,13 +27,17 @@ export default function Register() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col px-4 py-16">
-      <div className="mb-6 text-center"><Logo /></div>
-      <Card className="p-7">
+    <div className="mx-auto flex max-w-md flex-col px-6 py-24 lg:px-8">
+      <div className="mb-10 text-center">
+        <Logo />
+      </div>
+      <Card className="p-10">
         <h1 className="text-2xl font-extrabold text-charcoal-900">Create your account</h1>
-        <p className="mt-1 text-sm text-charcoal-400">Manage your pets, medical history, and bookings in one place.</p>
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</p>}
+        <p className="mt-2 text-sm text-charcoal-500">Manage your pets, medical history, and bookings in one place.</p>
+        <form onSubmit={submit} className="mt-8 space-y-5">
+          {error && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-600">{error}</p>
+          )}
           <Field label="Full name">
             <Input required value={form.full_name} onChange={set('full_name')} placeholder="Juan Dela Cruz" />
           </Field>
@@ -49,10 +53,15 @@ export default function Register() {
           <Field label="Address (optional)">
             <Input value={form.address} onChange={set('address')} placeholder="City / barangay" />
           </Field>
-          <Button type="submit" className="w-full" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</Button>
+          <Button type="submit" className="w-full" size="lg" disabled={busy}>
+            {busy ? 'Creating account…' : 'Create account'}
+          </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-charcoal-400">
-          Already registered? <Link to="/login" className="font-semibold text-teal-600 hover:underline">Log in</Link>
+        <p className="mt-6 text-center text-sm text-charcoal-500">
+          Already registered?{' '}
+          <Link to="/login" className="font-semibold text-teal-600 transition-colors hover:text-teal-700 hover:underline">
+            Log in
+          </Link>
         </p>
       </Card>
     </div>

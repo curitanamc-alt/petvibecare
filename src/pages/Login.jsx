@@ -35,36 +35,45 @@ export default function Login() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col px-4 py-16">
-      <div className="mb-6 text-center"><Logo /></div>
-      <Card className="p-7">
+    <div className="mx-auto flex max-w-md flex-col px-6 py-24 lg:px-8">
+      <div className="mb-10 text-center">
+        <Logo />
+      </div>
+      <Card className="p-10">
         <h1 className="text-2xl font-extrabold text-charcoal-900">Log in</h1>
-        <p className="mt-1 text-sm text-charcoal-400">Clients and clinic staff sign in here.</p>
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{error}</p>}
+        <p className="mt-2 text-sm text-charcoal-500">Clients and clinic staff sign in here.</p>
+        <form onSubmit={submit} className="mt-8 space-y-5">
+          {error && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-600">{error}</p>
+          )}
           <Field label="Email">
             <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" />
           </Field>
           <Field label="Password">
             <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
-          <Button type="submit" className="w-full" disabled={busy}>{busy ? 'Signing in…' : 'Log in'}</Button>
+          <Button type="submit" className="w-full" size="lg" disabled={busy}>
+            {busy ? 'Signing in…' : 'Log in'}
+          </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-charcoal-400">
-          New to PetVibe? <Link to="/register" className="font-semibold text-teal-600 hover:underline">Create an account</Link>
+        <p className="mt-6 text-center text-sm text-charcoal-500">
+          New to PetVibe?{' '}
+          <Link to="/register" className="font-semibold text-teal-600 transition-colors hover:text-teal-700 hover:underline">
+            Create an account
+          </Link>
         </p>
       </Card>
 
       {demos.length > 0 && (
-        <div className="mt-5 rounded-2xl border border-dashed border-sage-200 p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-charcoal-400">Demo accounts</p>
-          <div className="mt-2 space-y-2">
+        <div className="mt-8 rounded-2xl border-2 border-dashed border-sage-200 p-6">
+          <p className="text-xs font-bold uppercase tracking-wider text-charcoal-400">Demo accounts</p>
+          <div className="mt-4 space-y-2.5">
             {demos.map((d) => (
               <button
                 key={d.label}
                 type="button"
                 onClick={() => { setEmail(d.email); setPassword(d.password) }}
-                className="flex w-full items-center justify-between rounded-lg bg-sage-50 px-3 py-2 text-left text-sm hover:bg-sage-100"
+                className="flex w-full items-center justify-between rounded-xl bg-sage-50 px-5 py-3.5 text-left text-sm transition-colors hover:bg-sage-100"
               >
                 <span className="font-semibold text-teal-700">{d.label}</span>
                 <span className="text-xs text-charcoal-400">{d.email} · {d.password}</span>

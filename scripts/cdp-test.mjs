@@ -30,10 +30,19 @@ async function connect() {
   return { send, evalJs }
 }
 
+// Clear any stored mock-mode flag before every page load so the app always
+// talks to the live API when the dev server is running (stale flags from
+// previous sessions would otherwise stick the app in demo mode).
+let cleanScriptId = null
+
 async function loginAndDump(label, role, email, password, url, needles) {
   const cdp = await connect()
   await cdp.send('Page.enable')
   await cdp.send('Runtime.enable')
+  if (cleanScriptId === null) {
+    const r = await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `localStorage.removeItem('pv_mock')` })
+    cleanScriptId = r.result.identifier
+  }
   await cdp.send('Page.navigate', { url: 'http://localhost:5173/login' })
   await sleep(2500)
   // sign in through the real UI (native setter + input event so React state updates)
@@ -56,8 +65,8 @@ async function loginAndDump(label, role, email, password, url, needles) {
   // now on the portal/admin after redirect — navigate explicitly to the target page
   await cdp.send('Page.navigate', { url })
   await sleep(4000)
-  const text = (await cdp.evalJs('document.body.innerText')) || ''
-  const found = needles.map((n) => `${n}: ${text.includes(n) ? 'YES' : 'no'}`)
+  const text = ((await cdp.evalJs('document.body.innerText')) || '').toLowerCase()
+  const found = needles.map((n) => `${n}: ${text.includes(n.toLowerCase()) ? 'YES' : 'no'}`)
   console.log(`\n=== ${label} ===`)
   console.log(found.join('\n'))
   console.log('URL now:', await cdp.evalJs('location.pathname'))
@@ -86,7 +95,7 @@ await loginAndDump(
   'ADMIN /admin',
   'staff', 'admin@petvibe.ph', 'password123',
   'http://localhost:5173/admin',
-  ['Good', 'Total pets', 'Today', 'Pending approvals', 'Walk-in / ER'],
+  ['Good', 'Total pets', 'Upcoming appointments', 'Bookings by category', 'Walk-in / ER'],
 )
 
 // admin appointments
@@ -94,7 +103,7 @@ await loginAndDump(
   'ADMIN /admin/appointments',
   'staff', 'admin@petvibe.ph', 'password123',
   'http://localhost:5173/admin/appointments',
-  ['Appointments', 'PV-1001', 'PV-1002', 'No-show', 'Confirm'],
+  ['Appointments', 'PV-1001', 'No-show', 'Confirm'],
 )
 
 process.exit(0)

@@ -27,22 +27,35 @@ export default function Calendar({ value, onChange, disabled = () => false, minD
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <button type="button" onClick={prev} disabled={atMin} className="rounded-lg border border-sage-200 p-2 text-charcoal-600 hover:bg-sage-100 disabled:opacity-30" aria-label="Previous month">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={prev}
+          disabled={atMin}
+          className="rounded-lg border border-sage-200 p-2 text-charcoal-600 transition-colors hover:bg-sage-100 disabled:opacity-30"
+          aria-label="Previous month"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </button>
         <span className="font-bold text-charcoal-900">{monthLabel}</span>
-        <button type="button" onClick={next} className="rounded-lg border border-sage-200 p-2 text-charcoal-600 hover:bg-sage-100" aria-label="Next month">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
+        <button
+          type="button"
+          onClick={next}
+          className="rounded-lg border border-sage-200 p-2 text-charcoal-600 transition-colors hover:bg-sage-100"
+          aria-label="Next month"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
-        {DOW.map((d) => <div key={d} className="py-1 text-xs font-semibold text-charcoal-400">{d}</div>)}
+        {DOW.map((d) => (
+          <div key={d} className="py-1.5 text-xs font-semibold text-charcoal-400">{d}</div>
+        ))}
         {cells.map((d, i) => {
           if (!d) return <div key={`e${i}`} />
           const ds = iso(d)
           const past = ds < minIso
-          const closed = d.getDay() === 0 // clinic closed Sundays
+          const closed = d.getDay() === 0
           const isDisabled = past || closed || disabled(ds)
           const selected = ds === value
           return (
@@ -52,8 +65,12 @@ export default function Calendar({ value, onChange, disabled = () => false, minD
               disabled={isDisabled}
               onClick={() => onChange(ds)}
               className={cx(
-                'rounded-lg py-2 text-sm transition-colors',
-                selected ? 'bg-teal-600 font-bold text-white' : isDisabled ? 'text-charcoal-400 line-through opacity-50' : 'hover:bg-sage-100',
+                'rounded-lg py-2 text-sm font-medium transition-all duration-150',
+                selected
+                  ? 'bg-teal-600 font-bold text-white shadow-sm'
+                  : isDisabled
+                    ? 'text-charcoal-300 cursor-not-allowed'
+                    : 'hover:bg-sage-100 text-charcoal-700',
               )}
             >
               {d.getDate()}
@@ -61,7 +78,7 @@ export default function Calendar({ value, onChange, disabled = () => false, minD
           )
         })}
       </div>
-      <p className="mt-2 text-center text-xs text-charcoal-400">Clinic closed on Sundays · past dates unavailable</p>
+      <p className="mt-3 text-center text-xs text-charcoal-400">Clinic closed on Sundays · past dates unavailable</p>
     </div>
   )
 }
