@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PetVibe Care 🐾
 
 Pet care web portal for a veterinary clinic — public marketing site, client portal, and admin/staff dashboard. Built from the PetVibe Care master prompt (ERD, roles, business rules).
@@ -102,6 +103,8 @@ scripts/
 
 The schema in `server/schema.sql` mirrors the ERD and ports to PostgreSQL/MySQL with minor syntax changes (drop `STRICT`/`CHECK` syntax you don't want, swap `INTEGER PRIMARY KEY AUTOINCREMENT` for `SERIAL PRIMARY KEY`). The Express routes in `server/index.js` use prepared statements via `server/db.js` — replace that one file with a `pg`/`mysql2` client and the rest of the API works unchanged. Email sending lives in `server/mailer.js` (Gmail SMTP by default, simulated until configured — see *Email notifications (Gmail)* above).
 
+=======
+>>>>>>> 7e3dbe5c5cde6071261aa572021c790c0e902f0e
 ## Scripts
 
 - `npm run dev` — Vite dev server
