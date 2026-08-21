@@ -102,45 +102,38 @@ function reset() {
     services,
     bundles: seedBundles(services),
     staff: [
-      { staff_id: 1, full_name: 'Dr. Ana Reyes', role: 'admin', email: 'admin@petvibe.ph', specialization: 'Clinic Director', active: 1 },
-      { staff_id: 2, full_name: 'Dr. Marco Lim', role: 'vet', email: 'vet@petvibe.ph', specialization: 'Surgery & Orthopedics', active: 1 },
-      { staff_id: 3, full_name: 'Dr. Grace Tan', role: 'vet', email: 'grace@petvibe.ph', specialization: 'Internal Medicine & Diagnostics', active: 1 },
-      { staff_id: 4, full_name: 'Liza Cruz', role: 'groomer', email: 'liza@petvibe.ph', specialization: 'Grooming & Spa', active: 1 },
+      { staff_id: 1, full_name: 'Dr. Elinor Romero', role: 'admin', email: 'admin@petvibe.ph', specialization: 'Clinic Director', active: 1 },
+      { staff_id: 2, full_name: 'Dr. Sophia Sayaman', role: 'vet', email: 'vet@petvibe.ph', specialization: 'Surgery & Orthopedics', active: 1 },
+      { staff_id: 3, full_name: 'Dr. Marty Palmenco', role: 'vet', email: 'grace@petvibe.ph', specialization: 'Internal Medicine & Diagnostics', active: 1 },
+      { staff_id: 4, full_name: 'Dr. Rainiel Pallaya', role: 'groomer', email: 'liza@petvibe.ph', specialization: 'Grooming & Spa', active: 1 },
+      { staff_id: 5, full_name: 'Dr. Antoinette Curitana', role: 'vet', email: 'curitanamc@petvibe.ph', specialization: 'Grooming', active: 1 },
     ],
     owners: [
-      { owner_id: 1, full_name: 'Maria Santos', email: 'client@petvibe.ph', phone: '0917 555 1234', password: PASSWORD, address: 'Brgy. San Lorenzo, Makati City', account_type: 'registered', status: 'active' },
+      // The demo client (Maria Santos / client@petvibe.ph) was removed at the
+      // clinic's request — mirrors the server seed. No client demo login exists.
       { owner_id: 2, full_name: 'Juan Dela Cruz', email: 'juan.dc@example.com', phone: '0918 555 9876', password: null, address: 'Tondo, Manila', account_type: 'walk_in', status: 'active' },
       { owner_id: 3, full_name: 'Ana Garcia', email: 'ana.garcia@example.com', phone: '0920 555 3344', password: PASSWORD, address: 'Project 8, Quezon City', account_type: 'registered', status: 'active' },
-      { owner_id: 4, full_name: 'Ramon Bautista', email: 'ramon.b@example.com', phone: '0916 555 7788', password: null, address: 'Calamba, Laguna', account_type: 'registered', status: 'suspended' },
+      // Suspended with a valid password so the suspended-at-login (403) path can be demoed/tested.
+      { owner_id: 4, full_name: 'Ramon Bautista', email: 'ramon.b@example.com', phone: '0916 555 7788', password: PASSWORD, address: 'Calamba, Laguna', account_type: 'registered', status: 'suspended' },
     ],
     pets: [
-      { pet_id: 1, owner_id: 1, name: 'Bella', species: 'dog', breed: 'Shih Tzu', gender: 'female', birthdate: '2021-03-14', weight_kg: 5.2, created_at: iso(-60) },
-      { pet_id: 2, owner_id: 1, name: 'Mochi', species: 'cat', breed: 'Persian', gender: 'male', birthdate: '2022-06-01', weight_kg: 4.1, created_at: iso(-45) },
+      // Demo pets belonging to the removed client demo account were removed too.
       { pet_id: 3, owner_id: 2, name: 'Bantay', species: 'dog', breed: 'Aspin', gender: 'male', birthdate: '2019-01-10', weight_kg: 18.0, created_at: iso(-30) },
       { pet_id: 4, owner_id: 3, name: 'Chico', species: 'dog', breed: 'Chihuahua', gender: 'male', birthdate: '2023-09-02', weight_kg: 2.8, created_at: iso(-20) },
       { pet_id: 5, owner_id: 4, name: 'Muning', species: 'cat', breed: 'Puspin', gender: 'female', birthdate: '2020-12-25', weight_kg: 3.4, created_at: iso(-15) },
-      { pet_id: 6, owner_id: 1, name: 'Coco', species: 'rabbit', breed: 'Netherland Dwarf', gender: 'female', birthdate: '2023-05-12', weight_kg: 1.1, created_at: iso(-14) },
       { pet_id: 7, owner_id: 3, name: 'Pip', species: 'guinea_pig', breed: 'Abyssinian', gender: 'male', birthdate: '2024-01-20', weight_kg: 0.9, created_at: iso(-13) },
       { pet_id: 8, owner_id: 3, name: 'Nibbles', species: 'rat', breed: 'Fancy Rat', gender: 'male', birthdate: '2024-08-05', weight_kg: 0.35, created_at: iso(-12) },
       { pet_id: 9, owner_id: 2, name: 'Kiko', species: 'bird', breed: 'Cockatiel', gender: 'male', birthdate: '2022-02-14', weight_kg: 0.1, created_at: iso(-11) },
       { pet_id: 10, owner_id: 4, name: 'Babe', species: 'pig', breed: 'Miniature Pig', gender: 'female', birthdate: '2023-11-30', weight_kg: 22.0, created_at: iso(-10) },
     ],
     bookings: [
-      { booking_id: 1, reference_code: 'PV-1001', owner_id: 1, pet_id: 1, service_id: 1, staff_id: 3, booking_date: iso(0), booking_time: '10:00', status: 'confirmed', created_by: 'client', notes: 'Low appetite since Monday.', created_at: iso(-2) },
-      { booking_id: 2, reference_code: 'PV-1002', owner_id: 1, pet_id: 2, service_id: 12, staff_id: 4, booking_date: iso(0), booking_time: '14:00', status: 'pending', created_by: 'client', notes: 'Matting behind the ears.', created_at: iso(-1) },
-      { booking_id: 3, reference_code: 'PV-1003', owner_id: 1, pet_id: 1, service_id: 11, staff_id: null, booking_date: iso(3), booking_time: '11:00', status: 'pending', created_by: 'client', notes: 'Suspected hip issue, limping.', created_at: iso(0) },
+      // Bookings belonging to the removed client demo account were removed too.
       { booking_id: 4, reference_code: 'PV-1004', owner_id: 2, pet_id: 3, service_id: 24, staff_id: 2, booking_date: iso(1), booking_time: '09:00', status: 'pending', created_by: 'admin', notes: 'Walk-in booking made at counter.', created_at: iso(0) },
-      { booking_id: 5, reference_code: 'PV-1005', owner_id: 1, pet_id: 1, service_id: 1, staff_id: 3, booking_date: iso(-6), booking_time: '15:00', status: 'completed', created_by: 'client', notes: 'Annual wellness visit.', created_at: iso(-10) },
-      { booking_id: 6, reference_code: 'PV-1006', owner_id: 1, pet_id: 1, service_id: 8, staff_id: 3, booking_date: iso(-5), booking_time: '09:00', status: 'no_show', created_by: 'client', notes: 'Client arrived 45 minutes late; slot forfeited to walk-in.', created_at: iso(-8) },
-      { booking_id: 7, reference_code: 'PV-1007', owner_id: 1, pet_id: 1, service_id: 5, staff_id: 2, booking_date: iso(-20), booking_time: '10:00', status: 'completed', created_by: 'client', notes: null, created_at: iso(-22) },
       { booking_id: 8, reference_code: 'PV-1008', owner_id: 3, pet_id: 4, service_id: 1, staff_id: 3, booking_date: iso(1), booking_time: '16:00', status: 'confirmed', created_by: 'client', notes: 'First visit — deworming due.', created_at: iso(-3) },
       { booking_id: 9, reference_code: 'PV-1009', owner_id: 4, pet_id: 5, service_id: 8, staff_id: null, booking_date: iso(-12), booking_time: '10:00', status: 'cancelled', created_by: 'client', notes: 'Owner cancelled — account under review.', created_at: iso(-14) },
     ],
     records: [
-      { record_id: 1, pet_id: 1, booking_id: 7, visit_date: iso(-20), staff_id: 2, diagnosis: 'Healthy — routine vaccination', treatment_notes: '5-in-1 booster administered. No adverse reaction.', vaccinations_given: '5-in-1 Vaccine', weight_at_visit: 5.0, next_due_date: iso(125), created_at: iso(-20), record_type: 'vaccination', title: '5-in-1 booster' },
-      { record_id: 2, pet_id: 1, booking_id: 5, visit_date: iso(-6), staff_id: 3, diagnosis: 'Mild gastritis suspected', treatment_notes: 'Prescribed bland diet for 3 days and GI protectant.', vaccinations_given: null, weight_at_visit: 5.1, next_due_date: null, created_at: iso(-6), record_type: 'checkup', title: 'Gastritis check-up' },
-      { record_id: 3, pet_id: 2, booking_id: null, visit_date: iso(-30), staff_id: 4, diagnosis: 'Healthy — grooming visit', treatment_notes: 'Full groom completed. Skin clear.', vaccinations_given: null, weight_at_visit: 4.0, next_due_date: null, created_at: iso(-30), record_type: 'grooming', title: 'Full groom + matting removal' },
-      { record_id: 4, pet_id: 1, booking_id: null, visit_date: iso(-90), staff_id: 2, diagnosis: 'Rabies booster', treatment_notes: 'Rabies vaccination administered. Annual booster is now due.', vaccinations_given: 'Rabies Vaccine', weight_at_visit: 5.1, next_due_date: iso(-10), created_at: iso(-90), record_type: 'vaccination', title: 'Rabies booster (due)' },
+      // Records belonged to the removed client demo account's pets.
     ],
     schedules: [
       { schedule_id: 1, staff_id: 1, day_of_week: 1, start_time: '09:00', end_time: '17:00', is_available: 1 },
@@ -163,26 +156,24 @@ function reset() {
       { schedule_id: 18, staff_id: 4, day_of_week: 4, start_time: '10:00', end_time: '18:00', is_available: 1 },
       { schedule_id: 19, staff_id: 4, day_of_week: 5, start_time: '10:00', end_time: '18:00', is_available: 1 },
       { schedule_id: 20, staff_id: 4, day_of_week: 6, start_time: '10:00', end_time: '18:00', is_available: 1 },
+      { schedule_id: 21, staff_id: 5, day_of_week: 1, start_time: '09:00', end_time: '17:00', is_available: 1 },
+      { schedule_id: 22, staff_id: 5, day_of_week: 2, start_time: '09:00', end_time: '17:00', is_available: 1 },
+      { schedule_id: 23, staff_id: 5, day_of_week: 3, start_time: '09:00', end_time: '17:00', is_available: 1 },
+      { schedule_id: 24, staff_id: 5, day_of_week: 4, start_time: '09:00', end_time: '17:00', is_available: 1 },
+      { schedule_id: 25, staff_id: 5, day_of_week: 5, start_time: '09:00', end_time: '17:00', is_available: 1 },
+      { schedule_id: 26, staff_id: 5, day_of_week: 6, start_time: '09:00', end_time: '17:00', is_available: 1 },
     ],
     status_log: [
-      { log_id: 1, booking_id: 1, from_status: null, to_status: 'pending', note: 'Booking created by client', changed_by_role: 'client', changed_by_name: 'Maria Santos', created_at: iso(-2) },
-      { log_id: 2, booking_id: 1, from_status: 'pending', to_status: 'confirmed', note: null, changed_by_role: 'staff', changed_by_name: 'Dr. Ana Reyes', created_at: iso(-1) },
-      { log_id: 3, booking_id: 5, from_status: null, to_status: 'pending', note: 'Booking created by client', changed_by_role: 'client', changed_by_name: 'Maria Santos', created_at: iso(-10) },
-      { log_id: 4, booking_id: 5, from_status: 'pending', to_status: 'confirmed', note: null, changed_by_role: 'staff', changed_by_name: 'Dr. Ana Reyes', created_at: iso(-9) },
-      { log_id: 5, booking_id: 5, from_status: 'confirmed', to_status: 'completed', note: null, changed_by_role: 'staff', changed_by_name: 'Dr. Grace Tan', created_at: iso(-6) },
-      { log_id: 6, booking_id: 6, from_status: null, to_status: 'pending', note: 'Booking created by client', changed_by_role: 'client', changed_by_name: 'Maria Santos', created_at: iso(-8) },
-      { log_id: 7, booking_id: 6, from_status: 'pending', to_status: 'confirmed', note: null, changed_by_role: 'staff', changed_by_name: 'Dr. Ana Reyes', created_at: iso(-7) },
-      { log_id: 8, booking_id: 6, from_status: 'confirmed', to_status: 'no_show', note: 'Client arrived 45 minutes late; slot forfeited to walk-in', changed_by_role: 'staff', changed_by_name: 'Dr. Ana Reyes', created_at: iso(-5) },
+      // Audit rows belonged to the removed client demo account's bookings.
     ],
     reschedule_requests: [
-      { request_id: 1, booking_id: 3, requested_date: iso(5), requested_time: '15:00', reason: 'Work schedule conflict — can only come after 2pm', status: 'pending', created_at: iso(0) },
+      // The demo reschedule request belonged to the removed client demo account.
     ],
     notifications: [
-      { notification_id: 1, owner_id: 1, booking_id: 1, type: 'confirmation', channel: 'email', sent_at: iso(-2), message_body: 'Your booking PV-1001 is confirmed for ' + iso(0) + ' at 10:00.' },
-      { notification_id: 2, owner_id: 1, booking_id: 6, type: 'rebooking', channel: 'email', sent_at: iso(-5), message_body: 'Your slot PV-1006 was forfeited due to late arrival. Please rebook: ' + iso(1) + ' 10:00, ' + iso(1) + ' 14:00, ' + iso(2) + ' 09:00.' },
+      // Notifications belonged to the removed client demo account.
     ],
     sessions: new Map(),
-    seq: { booking: 10, pet: 6, owner: 5, record: 5, staff: 5, schedule: 21, log: 9, reschedule: 2 },
+    seq: { booking: 10, pet: 6, owner: 5, record: 5, staff: 6, schedule: 27, log: 9, reschedule: 2 },
   }
 }
 
@@ -199,6 +190,13 @@ function decorateBooking(b) {
   const s = svc(b.service_id)
   const o = owner(b.owner_id)
   return { ...b, pet_name: p?.name, pet_species: p?.species, pet_breed: p?.breed, pet_weight: p?.weight_kg, owner_name: o?.full_name, owner_phone: o?.phone, owner_email: o?.email, service_name: s?.name, service_category: s?.category, service_price: s?.price_min, staff_name: staffName(b.staff_id), staff_role: staff(b.staff_id)?.role }
+}
+
+// Mirror of server/index.js bookingSummary — keeps in-app demo notifications
+// consistent with the real emails (pet/service always match the booking).
+function bookingSummary(b) {
+  const db = decorateBooking(b)
+  return `Service: ${db.service_name}\nPet: ${db.pet_name}\nDate: ${b.booking_date}\nTime: ${b.booking_time}\nReference: ${b.reference_code}`
 }
 
 function inferRecordType(r) {
@@ -239,26 +237,86 @@ function logBookingStatus(bookingId, fromStatus, toStatus, actor, note = null) {
   })
 }
 
+// In-app notification helpers (mirror of server/index.js sendEmail/notifyStaff).
+const notify = (n) => {
+  state.notifications.unshift({
+    notification_id: state.notifications.length + 1,
+    channel: 'email',
+    sent_at: new Date().toISOString(),
+    read_at: null,
+    ...n,
+  })
+}
+const notifyStaffAll = (type, subject, body, bookingId = null) => {
+  for (const s of state.staff) if (s.active) notify({ staff_id: s.staff_id, type, subject, message_body: body, booking_id: bookingId })
+}
+
 function err(status, message) {
   const e = new Error(message)
   e.status = status
   throw e
 }
 
+// Sessions live 7 days in-memory, mirroring the server's sessions.expires_at.
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const makeSession = (ownerId = null, staffId = null) => {
+  const t = ownerId ? `mock-client-${ownerId}` : `mock-staff-${staffId}`
+  state.sessions.set(t, { owner_id: ownerId, staff_id: staffId, expires_at: Date.now() + SESSION_TTL_MS })
+  return t
+}
+const getSession = (token) => {
+  let sid = state.sessions.get(token)
+  // Sessions live in-memory and die on page reload. The token format
+  // (mock-staff-<id> / mock-client-<id>) encodes who it belongs to, so we can
+  // rebuild the session instead of forcing a confusing re-login.
+  if (!sid && typeof token === 'string') {
+    const m = token.match(/^mock-(staff|client)-(\d+)$/)
+    if (m) {
+      const id = Number(m[2])
+      sid = m[1] === 'staff'
+        ? { owner_id: null, staff_id: id, expires_at: Date.now() + SESSION_TTL_MS }
+        : { owner_id: id, staff_id: null, expires_at: Date.now() + SESSION_TTL_MS }
+      state.sessions.set(token, sid)
+    }
+  }
+  if (!sid) return null
+  if (Date.now() > sid.expires_at) {
+    state.sessions.delete(token)
+    err(401, 'Session expired, please log in again')
+  }
+  return sid
+}
+
+// Mirror the server's requireOwner/requireAdmin: no session → 401; valid
+// session of the WRONG account type → 403 (a client token hitting admin
+// routes is an access violation, not a missing login).
 const requireClient = (token) => {
-  const sid = state.sessions.get(token)
-  const o = sid ? owner(sid.owner_id) : null
+  const sid = getSession(token)
+  if (!sid) err(401, 'Not logged in')
+  if (sid.staff_id) err(403, 'Client account required')
+  const o = owner(sid.owner_id)
   if (!o) err(401, 'Not logged in')
   return o
 }
+const requireAdmin = (token) => {
+  const sid = getSession(token)
+  if (!sid) err(401, 'Not logged in')
+  if (sid.owner_id) err(403, 'Admin access required')
+  const s = staff(sid.staff_id)
+  if (!s) err(401, 'Not logged in')
+  if (s.role !== 'admin') err(403, 'Only admins can perform this action')
+  return s
+}
 const requireStaff = (token) => {
-  const sid = state.sessions.get(token)
-  const s = sid ? staff(sid.staff_id) : null
+  const sid = getSession(token)
+  if (!sid) err(401, 'Not logged in')
+  if (sid.owner_id) err(403, 'Staff access required')
+  const s = staff(sid.staff_id)
   if (!s) err(401, 'Not logged in')
   return s
 }
 const currentStaff = (token) => {
-  const sid = state.sessions.get(token)
+  const sid = getSession(token)
   return sid ? staff(sid.staff_id) : null
 }
 
@@ -275,37 +333,41 @@ export function mockRequest(method, path, body = {}, token = null) {
   // auth
   if (p === '/auth/login' && m === 'POST') {
     const o = state.owners.find((x) => x.email === body.email)
-    if (o && o.password && o.password === body.password) {
-      const t = 'mock-client-' + o.owner_id
-      state.sessions.set(t, { owner_id: o.owner_id })
-      return { token: t, role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type } }
+    if (o && o.password === body.password) {
+      // Blocked after a valid password so we don't leak account state (mirrors server).
+      if (o.status === 'suspended') err(403, 'This account has been suspended')
+      const t = makeSession(o.owner_id)
+      return { token: t, role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type, photo_url: o.photo_url || null } }
     }
     const s = state.staff.find((x) => x.email === body.email)
     if (s && s.active && body.password === PASSWORD) {
-      const t = 'mock-staff-' + s.staff_id
-      state.sessions.set(t, { staff_id: s.staff_id })
-      return { token: t, role: 'staff', user: { staff_id: s.staff_id, full_name: s.full_name, role: s.role, email: s.email, specialization: s.specialization } }
+      const t = makeSession(null, s.staff_id)
+      const staffRole = s.role === 'admin' ? 'admin' : 'staff'
+      return { token: t, role: staffRole, user: { staff_id: s.staff_id, full_name: s.full_name, role: s.role, email: s.email, specialization: s.specialization, photo_url: s.photo_url || null } }
     }
     err(401, 'Invalid email or password')
   }
   if (p === '/auth/register' && m === 'POST') {
     if (state.owners.some((o) => o.email === body.email)) err(409, 'An account with this email already exists')
-    const o = { owner_id: state.seq.owner++, full_name: body.full_name, email: body.email, phone: body.phone, password: body.password, address: body.address || null, account_type: 'registered', status: 'active' }
+    const o = { owner_id: state.seq.owner++, full_name: body.full_name, email: body.email, phone: body.phone, password: body.password, address: body.address || null, account_type: 'registered', status: 'active', photo_url: null }
     state.owners.push(o)
-    const t = 'mock-client-' + o.owner_id
-    state.sessions.set(t, { owner_id: o.owner_id })
-    return { token: t, role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: 'registered' } }
+    const t = makeSession(o.owner_id)
+    return { token: t, role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: 'registered', photo_url: null } }
   }
   if (p === '/auth/me' && m === 'GET') {
     const t = token && (state.sessions.has(token) ? token : null)
     if (!t) err(401, 'Not logged in')
-    const sid = state.sessions.get(t)
-    if (sid.staff_id) return { role: 'staff', user: { staff_id: sid.staff_id, full_name: staff(sid.staff_id).full_name, role: staff(sid.staff_id).role, email: staff(sid.staff_id).email, specialization: staff(sid.staff_id).specialization } }
+    const sid = getSession(t)
+    if (sid.staff_id) { const s = staff(sid.staff_id); return { role: s.role === 'admin' ? 'admin' : 'staff', user: { staff_id: s.staff_id, full_name: s.full_name, role: s.role, email: s.email, specialization: s.specialization, photo_url: s.photo_url || null } } }
     const o = owner(sid.owner_id)
-    return { role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type } }
+    return { role: 'client', user: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type, photo_url: o.photo_url || null } }
   }
   if (p === '/auth/logout' && m === 'POST') { state.sessions.delete(token); return { ok: true } }
-  if (p === '/demo-accounts' && m === 'GET') return [{ label: 'Client', email: 'client@petvibe.ph', password: PASSWORD }, { label: 'Admin/Staff', email: 'admin@petvibe.ph', password: PASSWORD }]
+  if (p === '/demo-accounts' && m === 'GET') {
+    // Mirror the server: never expose demo logins on a production build.
+    if (typeof import.meta !== 'undefined' && import.meta.env?.PROD && import.meta.env?.VITE_SHOW_DEMO_ACCOUNTS !== '1') return []
+    return [{ label: 'Admin', email: 'admin@petvibe.ph', password: PASSWORD }, { label: 'Staff (Vet)', email: 'vet@petvibe.ph', password: PASSWORD }, { label: 'Staff (Groomer)', email: 'liza@petvibe.ph', password: PASSWORD }]
+  }
 
   // public
   if (p === '/services' && m === 'GET') {
@@ -321,7 +383,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     return Object.entries(counts).map(([category, count]) => ({ category, count }))
   }
   if (p === '/bundles' && m === 'GET') return state.bundles
-  if (p === '/team' && m === 'GET') return state.staff.filter((s) => s.active).map(({ staff_id, full_name, role, specialization }) => ({ staff_id, full_name, role, specialization }))
+  if (p === '/team' && m === 'GET') return state.staff.filter((s) => s.active).map(({ staff_id, full_name, role, specialization, photo_url }) => ({ staff_id, full_name, role, specialization, photo_url }))
   if (p === '/slots' && m === 'GET') {
     const date = query.date || iso()
     const taken = state.bookings.filter((b) => b.booking_date === date && !['cancelled', 'no_show'].includes(b.status)).map((b) => b.booking_time)
@@ -331,7 +393,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   // client
   if (p === '/me' && m === 'GET') {
     const o = requireClient(token)
-    return { owner: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type }, pets: state.pets.filter((x) => x.owner_id === o.owner_id) }
+    return { owner: { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type, photo_url: o.photo_url || null }, pets: state.pets.filter((x) => x.owner_id === o.owner_id) }
   }
   if (p === '/me' && m === 'PUT') {
     const o = requireClient(token)
@@ -340,7 +402,8 @@ export function mockRequest(method, path, body = {}, token = null) {
       o.email = body.email
     }
     Object.assign(o, { full_name: body.full_name ?? o.full_name, phone: body.phone ?? o.phone, address: body.address ?? o.address })
-    return { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type }
+    if (body.photo_url !== undefined) o.photo_url = body.photo_url === '' ? null : body.photo_url
+    return { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type, photo_url: o.photo_url || null }
   }
   if (p === '/me/password' && m === 'PATCH') {
     const o = requireClient(token)
@@ -353,7 +416,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   if (p === '/pets' && m === 'POST') {
     const o = requireClient(token)
-    const pk = { pet_id: state.seq.pet++, owner_id: o.owner_id, name: body.name, species: body.species || 'dog', breed: body.breed || null, gender: body.gender || null, birthdate: body.birthdate || null, weight_kg: body.weight_kg || null, created_at: iso() }
+    const pk = { pet_id: state.seq.pet++, owner_id: o.owner_id, name: body.name, species: body.species || 'dog', breed: body.breed || null, gender: body.gender || null, birthdate: body.birthdate || null, weight_kg: body.weight_kg || null, photo_url: body.photo_url || null, created_at: iso() }
     state.pets.push(pk)
     return pk
   }
@@ -363,6 +426,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     const pk = state.pets.find((x) => x.pet_id === Number(pm[1]) && x.owner_id === o.owner_id)
     if (!pk) err(404, 'Pet not found')
     Object.assign(pk, { name: body.name ?? pk.name, species: body.species ?? pk.species, breed: body.breed ?? pk.breed, gender: body.gender ?? pk.gender, birthdate: body.birthdate ?? pk.birthdate, weight_kg: body.weight_kg ?? pk.weight_kg })
+    if (body.photo_url !== undefined) pk.photo_url = body.photo_url === '' ? null : body.photo_url
     return pk
   }
   if (pm && m === 'DELETE') {
@@ -394,7 +458,8 @@ export function mockRequest(method, path, body = {}, token = null) {
     if (state.bookings.some((b) => b.booking_date === body.booking_date && b.booking_time === body.booking_time && !['cancelled', 'no_show'].includes(b.status))) err(409, 'That time slot is already taken — please pick another')
     const b = { booking_id: state.seq.booking++, reference_code: `PV-${1000 + state.seq.booking - 1}`, owner_id: o.owner_id, pet_id: Number(body.pet_id), service_id: Number(body.service_id), staff_id: null, booking_date: body.booking_date, booking_time: body.booking_time, status: 'pending', created_by: 'client', notes: body.notes || null, created_at: iso() }
     state.bookings.push(b)
-    state.notifications.unshift({ notification_id: state.notifications.length + 1, owner_id: o.owner_id, booking_id: b.booking_id, type: 'confirmation', channel: 'email', sent_at: iso(), message_body: `Your booking ${b.reference_code} is confirmed for ${b.booking_date} at ${b.booking_time}.` })
+    notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'booking_received', subject: `Booking received — ${b.reference_code}`, message_body: `Hi ${o.full_name}, we've received your booking request. Here's a summary:\n\n${bookingSummary(b)}\n\nWe'll confirm it shortly.` })
+    notifyStaffAll('booking_received', `New booking — ${b.reference_code}`, `${o.full_name} booked ${s.name} for ${pk.name} on ${b.booking_date} at ${b.booking_time}. Review it in Appointments.`, b.booking_id)
     logBookingStatus(b.booking_id, null, 'pending', { role: 'client', name: o.full_name }, 'Booking created by client')
     return decorateBooking(b)
   }
@@ -407,6 +472,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     const from = b.status
     b.status = 'cancelled'
     logBookingStatus(b.booking_id, from, 'cancelled', { role: 'client', name: o.full_name }, 'Cancelled by client')
+    notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'rebooking', subject: `Booking cancelled — ${b.reference_code}`, message_body: `Hi ${o.full_name}, your booking has been cancelled. Here are the details:\n\n${bookingSummary(b)}\n\nIf you'd like to book another appointment, you can do so anytime on our site.` })
     return { ok: true }
   }
   pm = p.match(/^\/bookings\/(\d+)\/reschedule-request$/)
@@ -421,6 +487,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     const rq = { request_id: state.seq.reschedule++, booking_id: b.booking_id, requested_date: body.requested_date, requested_time: body.requested_time, reason: body.reason || null, status: 'pending', created_at: iso() }
     state.reschedule_requests.push(rq)
     logBookingStatus(b.booking_id, b.status, b.status, { role: 'client', name: o.full_name }, `Client requested reschedule to ${body.requested_date} at ${body.requested_time}${body.reason ? ` — ${body.reason}` : ''}`)
+    notifyStaffAll('reschedule', `Reschedule request — ${b.reference_code}`, `${o.full_name} requested to move ${b.reference_code} to ${body.requested_date} at ${body.requested_time}${body.reason ? ` — ${body.reason}` : ''}. Review it in Appointments.`, b.booking_id)
     return rq
   }
   pm = p.match(/^\/bookings\/(\d+)\/reschedule-request\/(\d+)$/)
@@ -441,6 +508,18 @@ export function mockRequest(method, path, body = {}, token = null) {
     return { history: state.status_log.filter((l) => l.booking_id === b.booking_id), reschedule_requests: state.reschedule_requests.filter((r) => r.booking_id === b.booking_id) }
   }
 
+  // client: in-app notifications
+  if (p === '/notifications' && m === 'GET') {
+    const o = requireClient(token)
+    const notifications = state.notifications.filter((n) => n.owner_id === o.owner_id).slice(0, 30)
+    return { notifications, unread: notifications.filter((n) => !n.read_at).length }
+  }
+  if (p === '/notifications/read' && m === 'POST') {
+    const o = requireClient(token)
+    for (const n of state.notifications) if (n.owner_id === o.owner_id && !n.read_at) n.read_at = new Date().toISOString()
+    return { ok: true }
+  }
+
   // admin: services CRUD
   if (p === '/admin/services' && m === 'GET') {
     requireStaff(token)
@@ -448,7 +527,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     return state.services.map((s) => ({ ...s }))
   }
   if (p === '/admin/services' && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = {
       service_id: state.seq.service ?? state.services.length + 1,
       name: body.name, category: body.category, description: body.description || null,
@@ -462,7 +541,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/services\/(\d+)$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = state.services.find((x) => x.service_id === Number(pm[1]))
     if (!s) err(404, 'Service not found')
     const num = (v) => (v === '' || v === undefined || v === null ? null : Number(v))
@@ -477,16 +556,48 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/services\/(\d+)\/toggle$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = state.services.find((x) => x.service_id === Number(pm[1]))
     if (!s) err(404, 'Service not found')
     s.active = s.active ? 0 : 1
     return s
   }
 
+  // staff: schedule (read-only, shared with admin)
+  if (p === '/staff/schedule' && m === 'GET') {
+    requireStaff(token)
+    return state.schedules.map((sc) => ({ ...sc, staff_name: staff(sc.staff_id)?.full_name, staff_role: staff(sc.staff_id)?.role }))
+  }
+  // staff: bookings assigned to this staff member
+  if (p === '/staff/bookings' && m === 'GET') {
+    const s = requireStaff(token)
+    let list = state.bookings.filter((b) => b.staff_id === s.staff_id).map(decorateBooking)
+    if (query.status) list = list.filter((b) => b.status === query.status)
+    if (query.date) list = list.filter((b) => b.booking_date === query.date)
+    if (query.q) list = list.filter((b) => [b.owner_name, b.pet_name, b.reference_code].some((v) => v?.toLowerCase().includes(query.q.toLowerCase())))
+    return list.sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.booking_time.localeCompare(b.booking_time))
+  }
+  pm = p.match(/^\/staff\/bookings\/(\d+)$/)
+  if (pm && m === 'GET') {
+    const s = requireStaff(token)
+    const booking = state.bookings.find((b) => b.booking_id === Number(pm[1]) && b.staff_id === s.staff_id)
+    if (!booking) err(404, 'Booking not found')
+    const recs = state.records.filter((r) => r.booking_id === booking.booking_id).map(decorateRecord)
+    return { booking: decorateBooking(booking), records: recs }
+  }
+  if (pm && m === 'PATCH') {
+    const s = requireStaff(token)
+    const booking = state.bookings.find((b) => b.booking_id === Number(pm[1]) && b.staff_id === s.staff_id)
+    if (!booking) err(404, 'Booking not found or not assigned to you')
+    if (body.status) {
+      booking.status = body.status
+      state.log.push({ booking_id: booking.booking_id, from_status: booking.status, to_status: body.status, note: body.note || null, changed_by_role: 'staff', changed_by_name: s.full_name })
+    }
+    return decorateBooking(booking)
+  }
   // admin
   if (p === '/admin/stats' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const active = (b) => !['cancelled', 'no_show'].includes(b.status)
     return {
       totalPets: state.pets.length,
@@ -499,7 +610,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     }
   }
   if (p === '/admin/bookings' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     let list = state.bookings.map(decorateBooking)
     if (query.status) list = list.filter((b) => b.status === query.status)
     if (query.date) list = list.filter((b) => b.booking_date === query.date)
@@ -508,22 +619,26 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/bookings\/(\d+)$/)
   if (pm && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
     if (!b) err(404, 'Booking not found')
     return { booking: decorateBooking(b), records: state.records.filter((r) => r.booking_id === b.booking_id).map(decorateRecord) }
   }
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = currentStaff(token)
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
     if (!b) err(404, 'Booking not found')
-    const actor = { role: 'staff', name: s?.full_name || 'Staff' }
+    const actor = { role: 'admin', name: s?.full_name || 'Staff' }
     if (body.status) {
       if (!TRANSITIONS[b.status]?.includes(body.status)) err(400, `Cannot move booking from ${b.status} to ${body.status}`)
       const from = b.status
       b.status = body.status
       logBookingStatus(b.booking_id, from, body.status, actor, body.note || null)
+      if (body.status === 'confirmed') {
+        const o = owner(b.owner_id)
+        notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'confirmation', subject: `Booking confirmed — ${b.reference_code}`, message_body: `Hi ${o.full_name}, great news — your booking is confirmed!\n\n${bookingSummary(b)}\n\nWe look forward to seeing you and ${decorateBooking(b).pet_name}.` })
+      }
       if (body.status === 'completed' && !state.records.some((r) => r.booking_id === b.booking_id)) {
         // Auto-log the visit so registered clients see it in the pet's history
         state.records.push({
@@ -535,7 +650,7 @@ export function mockRequest(method, path, body = {}, token = null) {
       }
       if (body.status === 'no_show') {
         const o = owner(b.owner_id)
-        state.notifications.unshift({ notification_id: state.notifications.length + 1, owner_id: o.owner_id, booking_id: b.booking_id, type: 'rebooking', channel: 'email', sent_at: iso(), message_body: `Your slot ${b.reference_code} was forfeited due to late arrival. Please rebook: ${iso(1)} 10:00, ${iso(1)} 14:00, ${iso(2)} 09:00.` })
+        notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'rebooking', subject: `Rebooking options — ${b.reference_code}`, message_body: `Hi ${o.full_name}, unfortunately your appointment was marked as a no-show, so the slot has been released.\n\n${bookingSummary(b)}\n\nYou're welcome to rebook — ${iso(1)} at 10:00, 14:00, or 16:00.` })
       }
     }
     if (body.staff_id) {
@@ -551,7 +666,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/bookings\/(\d+)\/reschedule$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = currentStaff(token)
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
     if (!b) err(404, 'Booking not found')
@@ -565,37 +680,39 @@ export function mockRequest(method, path, body = {}, token = null) {
     const from = `${b.booking_date} ${b.booking_time}`
     b.booking_date = body.booking_date
     b.booking_time = body.booking_time
-    logBookingStatus(b.booking_id, b.status, b.status, { role: 'staff', name: s?.full_name || 'Staff' }, `Rescheduled from ${from} to ${b.booking_date} at ${b.booking_time}`)
+    logBookingStatus(b.booking_id, b.status, b.status, { role: 'admin', name: s?.full_name || 'Staff' }, `Rescheduled from ${from} to ${b.booking_date} at ${b.booking_time}`)
+    const o = owner(b.owner_id)
+    notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'confirmation', subject: `Appointment moved — ${b.reference_code}`, message_body: `Hi ${o.full_name}, your appointment has been rescheduled. Here are your updated details:\n\n${bookingSummary(b)}\n\nSee you then!` })
     return decorateBooking(b)
   }
   pm = p.match(/^\/admin\/bookings\/(\d+)\/assign$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = currentStaff(token)
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
     if (!b) err(404, 'Booking not found')
     const target = state.staff.find((x) => x.staff_id === Number(body.staff_id) && x.active)
     if (!target) err(400, 'Staff member not found or inactive')
     b.staff_id = target.staff_id
-    logBookingStatus(b.booking_id, b.status, b.status, { role: 'staff', name: s?.full_name || 'Staff' }, `Assigned to ${target.full_name}`)
+    logBookingStatus(b.booking_id, b.status, b.status, { role: 'admin', name: s?.full_name || 'Staff' }, `Assigned to ${target.full_name}`)
     return decorateBooking(b)
   }
   pm = p.match(/^\/admin\/bookings\/(\d+)\/history$/)
   if (pm && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
     if (!b) err(404, 'Booking not found')
     return { booking: decorateBooking(b), history: state.status_log.filter((l) => l.booking_id === b.booking_id), reschedule_requests: state.reschedule_requests.filter((r) => r.booking_id === b.booking_id) }
   }
   pm = p.match(/^\/admin\/bookings\/(\d+)\/reschedule-request\/(\d+)$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = currentStaff(token)
     const rq = state.reschedule_requests.find((r) => r.request_id === Number(pm[2]) && r.booking_id === Number(pm[1]))
     if (!rq) err(404, 'Reschedule request not found')
     if (rq.status !== 'pending') err(400, 'This request has already been handled')
     const b = state.bookings.find((x) => x.booking_id === Number(pm[1]))
-    const actor = { role: 'staff', name: s?.full_name || 'Staff' }
+    const actor = { role: 'admin', name: s?.full_name || 'Staff' }
     if (body.action === 'approve') {
       if (state.bookings.some((x) => x.booking_date === rq.requested_date && x.booking_time === rq.requested_time && x.booking_id !== b.booking_id && !['cancelled', 'no_show'].includes(x.status))) err(409, 'The requested slot is no longer available — ask the client to pick another')
       const from = `${b.booking_date} ${b.booking_time}`
@@ -603,20 +720,24 @@ export function mockRequest(method, path, body = {}, token = null) {
       b.booking_time = rq.requested_time
       rq.status = 'approved'
       logBookingStatus(b.booking_id, b.status, b.status, actor, `Client reschedule approved: ${from} → ${rq.requested_date} at ${rq.requested_time}`)
+      const o = owner(b.owner_id)
+      notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'reschedule', subject: `Reschedule approved — ${b.reference_code}`, message_body: `Hi ${o.full_name}, your reschedule request has been approved! Here are your updated details:\n\n${bookingSummary(b)}\n\nSee you then!` })
     } else if (body.action === 'decline') {
       rq.status = 'declined'
       logBookingStatus(b.booking_id, b.status, b.status, actor, `Client reschedule request declined: ${rq.requested_date} at ${rq.requested_time}`)
+      const o = owner(b.owner_id)
+      notify({ owner_id: o.owner_id, booking_id: b.booking_id, type: 'reschedule', subject: `Reschedule request declined — ${b.reference_code}`, message_body: `Hi ${o.full_name}, unfortunately your request to move your appointment was declined.\n\n${bookingSummary(b)}\n\nIf you'd like a different time, please contact the clinic or request a new slot from your portal.` })
     } else {
       err(400, 'action must be approve or decline')
     }
     return rq
   }
   if (p === '/admin/bookings' && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     if (state.bookings.some((b) => b.booking_date === body.booking_date && b.booking_time === body.booking_time && !['cancelled', 'no_show'].includes(b.status))) err(409, 'That time slot is already taken')
     const b = { booking_id: state.seq.booking++, reference_code: `PV-${1000 + state.seq.booking - 1}`, owner_id: Number(body.owner_id), pet_id: Number(body.pet_id), service_id: Number(body.service_id), staff_id: body.staff_id || null, booking_date: body.booking_date, booking_time: body.booking_time, status: 'pending', created_by: 'admin', notes: body.notes || null, created_at: iso() }
     state.bookings.push(b)
-    logBookingStatus(b.booking_id, null, 'pending', { role: 'staff', name: currentStaff(token)?.full_name || 'Staff' }, 'Booking created by staff')
+    logBookingStatus(b.booking_id, null, 'pending', { role: 'admin', name: currentStaff(token)?.full_name || 'Staff' }, 'Booking created by staff')
     return decorateBooking(b)
   }
   if (p === '/admin/pets' && m === 'GET') {
@@ -633,6 +754,14 @@ export function mockRequest(method, path, body = {}, token = null) {
     const o = owner(pk.owner_id)
     return { pet: { ...pk, owner_name: o?.full_name, owner_phone: o?.phone, owner_email: o?.email, account_type: o?.account_type }, records: state.records.filter((r) => r.pet_id === pk.pet_id).map(decorateRecord), bookings: state.bookings.filter((b) => b.pet_id === pk.pet_id).map(decorateBooking) }
   }
+  pm = p.match(/^\/admin\/pets\/(\d+)\/photo$/)
+  if (pm && m === 'PATCH') {
+    requireAdmin(token)
+    const pk = state.pets.find((x) => x.pet_id === Number(pm[1]))
+    if (!pk) err(404, 'Pet not found')
+    pk.photo_url = body.photo_url === '' ? null : body.photo_url || null
+    return pk
+  }
   pm = p.match(/^\/admin\/pets\/(\d+)\/records$/)
   if (pm && m === 'GET') {
     requireStaff(token)
@@ -641,7 +770,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     return state.records.filter((r) => r.pet_id === pk.pet_id).map(decorateRecord)
   }
   if (pm && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = currentStaff(token)
     const r = { record_id: state.seq.record++, pet_id: Number(pm[1]), booking_id: body.booking_id || null, visit_date: body.record_date || body.visit_date, staff_id: body.staff_id ?? s?.staff_id ?? null, diagnosis: body.diagnosis || null, treatment_notes: body.notes || body.treatment_notes || null, vaccinations_given: body.vaccinations_given || null, weight_at_visit: body.weight_at_visit || null, next_due_date: body.next_due_date || null, record_type: body.type || body.record_type || null, title: body.title || null, created_at: iso() }
     state.records.push(r)
@@ -649,7 +778,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/records\/(\d+)$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const r = state.records.find((x) => x.record_id === Number(pm[1]))
     if (!r) err(404, 'Record not found')
     Object.assign(r, {
@@ -666,7 +795,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     return decorateRecord(r)
   }
   if (pm && m === 'DELETE') {
-    requireStaff(token)
+    requireAdmin(token)
     const i = state.records.findIndex((x) => x.record_id === Number(pm[1]))
     if (i === -1) err(404, 'Record not found')
     state.records.splice(i, 1)
@@ -677,17 +806,25 @@ export function mockRequest(method, path, body = {}, token = null) {
     return state.staff.map((s) => ({ ...s, appointment_count: state.bookings.filter((b) => b.staff_id === s.staff_id && ['confirmed', 'completed'].includes(b.status)).length }))
   }
   if (p === '/admin/staff' && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = { staff_id: state.seq.staff++, full_name: body.full_name, role: body.role, email: body.email || null, specialization: body.specialization || null, active: 1 }
     state.staff.push(s)
     return s
   }
   pm = p.match(/^\/admin\/staff\/(\d+)\/toggle$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const s = staff(pm[1])
     if (!s) err(404, 'Staff not found')
     s.active = s.active ? 0 : 1
+    return s
+  }
+  pm = p.match(/^\/admin\/staff\/(\d+)\/photo$/)
+  if (pm && m === 'PATCH') {
+    requireAdmin(token)
+    const s = staff(pm[1])
+    if (!s) err(404, 'Staff not found')
+    s.photo_url = body.photo_url === '' ? null : body.photo_url || null
     return s
   }
   if (p === '/admin/schedule' && m === 'GET') {
@@ -695,19 +832,19 @@ export function mockRequest(method, path, body = {}, token = null) {
     return state.schedules.map((sc) => ({ ...sc, staff_name: staff(sc.staff_id)?.full_name, staff_role: staff(sc.staff_id)?.role }))
   }
   if (p === '/admin/schedule' && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     const sc = { schedule_id: state.seq.schedule++, staff_id: Number(body.staff_id), day_of_week: Number(body.day_of_week), start_time: body.start_time, end_time: body.end_time, is_available: body.is_available === false ? 0 : 1 }
     state.schedules.push(sc)
     return { ...sc, staff_name: staff(sc.staff_id)?.full_name, staff_role: staff(sc.staff_id)?.role }
   }
   pm = p.match(/^\/admin\/schedule\/(\d+)$/)
   if (pm && m === 'DELETE') {
-    requireStaff(token)
+    requireAdmin(token)
     state.schedules = state.schedules.filter((s) => s.schedule_id !== Number(pm[1]))
     return { ok: true }
   }
   if (p === '/admin/walkin' && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     if (state.bookings.some((b) => b.booking_date === body.booking.booking_date && b.booking_time === body.booking.booking_time && !['cancelled', 'no_show'].includes(b.status))) err(409, 'That time slot is already taken')
     const o = { owner_id: state.seq.owner++, full_name: body.owner.full_name, email: body.owner.email || `walkin-${Date.now()}@petvibe.ph`, phone: body.owner.phone, password: null, address: body.owner.address || null, account_type: 'walk_in', status: 'active' }
     state.owners.push(o)
@@ -715,11 +852,11 @@ export function mockRequest(method, path, body = {}, token = null) {
     state.pets.push(pk)
     const b = { booking_id: state.seq.booking++, reference_code: `PV-${1000 + state.seq.booking - 1}`, owner_id: o.owner_id, pet_id: pk.pet_id, service_id: Number(body.booking.service_id), staff_id: body.booking.staff_id || null, booking_date: body.booking.booking_date, booking_time: body.booking.booking_time, status: 'pending', created_by: 'admin', notes: body.booking.notes || null, created_at: iso() }
     state.bookings.push(b)
-    logBookingStatus(b.booking_id, null, 'pending', { role: 'staff', name: currentStaff(token)?.full_name || 'Staff' }, 'Walk-in booking created at counter')
+    logBookingStatus(b.booking_id, null, 'pending', { role: 'admin', name: currentStaff(token)?.full_name || 'Staff' }, 'Walk-in booking created at counter')
     return { owner_id: o.owner_id, pet_id: pk.pet_id, booking_id: b.booking_id, reference_code: b.reference_code }
   }
   if (p === '/admin/analytics' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const days = []
     for (let i = 13; i >= 0; i--) days.push(iso(-i))
     const dayMap = {}
@@ -733,8 +870,15 @@ export function mockRequest(method, path, body = {}, token = null) {
     return { bookingsByDay: days.map((date) => ({ date, count: dayMap[date] || 0 })), revenueByService, staffPerformance: state.staff.map((s) => ({ full_name: s.full_name, role: s.role, completed: state.bookings.filter((b) => b.staff_id === s.staff_id && b.status === 'completed').length })).sort((a, b) => b.completed - a.completed), statusBreakdown, topServices: Object.entries(state.bookings.reduce((acc, b) => { const name = svc(b.service_id).name; acc[name] = (acc[name] || 0) + 1; return acc }, {})).map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n).slice(0, 5) }
   }
   if (p === '/admin/notifications' && m === 'GET') {
-    requireStaff(token)
-    return state.notifications.map((n) => ({ ...n, owner_name: owner(n.owner_id)?.full_name, owner_email: owner(n.owner_id)?.email }))
+    const s = requireAdmin(token)
+    // Only rows addressed to this staff member — never client-targeted rows
+    const notifications = state.notifications.filter((n) => n.staff_id === s.staff_id).slice(0, 30)
+    return { notifications: notifications.map((n) => ({ ...n, owner_name: owner(n.owner_id)?.full_name, owner_email: owner(n.owner_id)?.email })), unread: notifications.filter((n) => !n.read_at).length }
+  }
+  if (p === '/admin/notifications/read' && m === 'POST') {
+    const s = requireAdmin(token)
+    for (const n of state.notifications) if (n.staff_id === s.staff_id && !n.read_at) n.read_at = new Date().toISOString()
+    return { ok: true }
   }
 
   // admin: client (owner) accounts
@@ -745,7 +889,7 @@ export function mockRequest(method, path, body = {}, token = null) {
     booking_count: state.bookings.filter((b) => b.owner_id === o.owner_id).length,
   })
   if (p === '/admin/owners' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     let list = state.owners.map(decorateOwner)
     if (query.q) {
       const term = query.q.toLowerCase()
@@ -757,13 +901,13 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/owners\/(\d+)$/)
   if (pm && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const o = owner(pm[1])
     if (!o) err(404, 'Owner not found')
     return { owner: decorateOwner(o), pets: state.pets.filter((p) => p.owner_id === o.owner_id), bookings: state.bookings.filter((b) => b.owner_id === o.owner_id).map(decorateBooking) }
   }
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const o = owner(pm[1])
     if (!o) err(404, 'Owner not found')
     if (body.email && body.email.toLowerCase() !== o.email.toLowerCase() && state.owners.some((x) => x.email.toLowerCase() === body.email.toLowerCase() && x.owner_id !== o.owner_id)) err(409, 'Another account already uses that email')
@@ -777,7 +921,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/owners\/(\d+)\/status$/)
   if (pm && m === 'PATCH') {
-    requireStaff(token)
+    requireAdmin(token)
     const o = owner(pm[1])
     if (!o) err(404, 'Owner not found')
     if (!['active', 'suspended'].includes(body.status)) err(400, 'status must be active or suspended')
@@ -786,7 +930,7 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/owners\/(\d+)\/reset-password$/)
   if (pm && m === 'POST') {
-    requireStaff(token)
+    requireAdmin(token)
     const o = owner(pm[1])
     if (!o) err(404, 'Owner not found')
     if (o.account_type === 'walk_in' || !o.email) err(400, 'Walk-in clients have no login to reset')
@@ -794,10 +938,28 @@ export function mockRequest(method, path, body = {}, token = null) {
     o.password = temp
     return { ok: true, temp_password: temp }
   }
+  pm = p.match(/^\/admin\/owners\/(\d+)$/)
+  if (pm && m === 'DELETE') {
+    requireAdmin(token)
+    const o = owner(pm[1])
+    if (!o) err(404, 'Owner not found')
+    // Remove everything attached (mirror of server/index.js owner delete)
+    const bids = state.bookings.filter((b) => b.owner_id === o.owner_id).map((b) => b.booking_id)
+    const ownerPetIds = state.pets.filter((p) => p.owner_id === o.owner_id).map((p) => p.pet_id)
+    state.notifications = state.notifications.filter((n) => !bids.includes(n.booking_id) && n.owner_id !== o.owner_id)
+    state.records = state.records.filter((r) => !bids.includes(r.booking_id) && !ownerPetIds.includes(r.pet_id))
+    state.status_log = state.status_log.filter((l) => !bids.includes(l.booking_id))
+    state.reschedule_requests = state.reschedule_requests.filter((r) => !bids.includes(r.booking_id))
+    state.bookings = state.bookings.filter((b) => b.owner_id !== o.owner_id)
+    state.pets = state.pets.filter((p) => p.owner_id !== o.owner_id)
+    state.owners = state.owners.filter((x) => x.owner_id !== o.owner_id)
+    state.sessions.delete(`mock-client-${o.owner_id}`)
+    return { ok: true }
+  }
 
   // admin: printable reports
   if (p === '/admin/reports/appointments' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     if (!query.from || !query.to) err(400, 'from and to dates are required')
     let rows = state.bookings.filter((b) => b.booking_date >= query.from && b.booking_date <= query.to).map(decorateBooking)
     if (query.staff) rows = rows.filter((b) => String(b.staff_id) === query.staff)
@@ -806,14 +968,14 @@ export function mockRequest(method, path, body = {}, token = null) {
   }
   pm = p.match(/^\/admin\/reports\/pet\/(\d+)\/medical$/)
   if (pm && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     const pk = state.pets.find((x) => x.pet_id === Number(pm[1]))
     if (!pk) err(404, 'Pet not found')
     const o = owner(pk.owner_id)
     return { pet: { ...pk, owner_name: o?.full_name, owner_phone: o?.phone, owner_email: o?.email, owner_address: o?.address }, records: state.records.filter((r) => r.pet_id === pk.pet_id).map(decorateRecord) }
   }
   if (p === '/admin/reports/analytics' && m === 'GET') {
-    requireStaff(token)
+    requireAdmin(token)
     if (!query.from || !query.to) err(400, 'from and to dates are required')
     const inRange = state.bookings.filter((b) => b.booking_date >= query.from && b.booking_date <= query.to)
     const bookingsByService = Object.values(inRange.reduce((acc, b) => {

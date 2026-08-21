@@ -1,10 +1,13 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
+import { z } from 'zod'
 import { randomBytes } from 'node:crypto'
-import { dbGet, dbAll, dbRun } from './db.js'
+import { dbGet, dbAll, dbRun, withTransaction } from './db.js'
 import { migrate } from './migrations.js'
 import { seed, DEMO_ACCOUNTS } from './seed.js'
 import { hashPassword, verifyPassword } from './passwords.js'
+import { sendMail, emailConfigured, emailHtml } from './mailer.js'
 
 try {
   await migrate()
@@ -17,16 +20,92 @@ try {
 }
 
 const app = express()
-app.use(cors())
-app.use(express.json())
+// CORS: lock down to an explicit allow-list in production via the comma-
+// separated ALLOWED_ORIGIN env var. In dev the Vite proxy keeps everything
+// same-origin, so the permissive default is fine.
+const allowedOrigins = (process.env.ALLOWED_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean)
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}))
+// Photo uploads are base64 data URLs (up to MAX_PHOTO_URL ≈ 6 MB), so the
+// default 100 kb JSON limit would reject them with 413 before any handler
+// runs. 8 mb gives headroom for the largest allowed photo + JSON overhead.
+app.use(express.json({ limit: '8mb' }))
+
+// Rate-limit auth endpoints per IP to slow brute-force attempts (10 tries /
+// 15 min). Behind a reverse proxy in production, trust one hop so req.ip is
+// the real client instead of the proxy.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts — please try again in a few minutes' },
+})
 
 const PORT = process.env.PORT || 3001
 const SLOTS = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00']
 const todayStr = () => new Date().toISOString().slice(0, 10)
 
+// Photos are stored as base64 data URLs in photo_url columns (no external file
+// storage). Cap the payload so the DB doesn't balloon — 6 MB of base64 ≈ a
+// ~4.5 MB image. '' / undefined / null all mean "no photo".
+const MAX_PHOTO_URL = 6 * 1024 * 1024
+function normalizePhoto(v) {
+  if (v === undefined || v === null || v === '') return { ok: true, value: null }
+  if (typeof v !== 'string' || !v.startsWith('data:image/') || v.length > MAX_PHOTO_URL) return { ok: false }
+  return { ok: true, value: v }
+}
+
 // small helper so every route can stay a plain async function and errors
 // fall through to the error handler at the bottom instead of crashing the process
 const h = (fn) => (req, res, next) => fn(req, res, next).catch(next)
+
+// Validate a request body against a zod schema. On failure respond 400 with a
+// readable message; on success replace req.body with the parsed (stripped)
+// data so unknown fields are dropped instead of half-applied.
+const validate = (schema) => (req, res, next) => {
+  const parsed = schema.safeParse(req.body || {})
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: parsed.error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; '),
+    })
+  }
+  req.body = parsed.data
+  next()
+}
+
+// Email format check shared by registration, profile edits and walk-ins —
+// stops placeholder/garbage addresses from being saved (their booking emails
+// would otherwise go nowhere).
+const emailCheck = z.email()
+const isValidEmail = (v) => emailCheck.safeParse(v).success
+
+// ---- admin request schemas (replaces ad-hoc `if (!x) return 400` checks) ----
+// Staff job title is display-only — any enum value is allowed, but the app
+// never branches permissions on it (access is client/admin only).
+const staffCreateSchema = z.object({
+  full_name: z.string().trim().min(1, 'required'),
+  role: z.enum(['admin', 'vet', 'groomer', 'front_desk']),
+  email: z.union([z.email(), z.literal(''), z.undefined()]).optional(),
+  specialization: z.union([z.string().trim().max(120), z.literal(''), z.undefined()]).optional(),
+})
+
+const serviceCreateSchema = z.object({
+  name: z.string().trim().min(1, 'required'),
+  category: z.string().trim().min(1, 'required'),
+  description: z.string().optional().default(''),
+  price_min: z.preprocess((v) => Number(v), z.number().finite().nonnegative()),
+  price_max: z.preprocess((v) => (v === '' || v === undefined || v === null ? null : Number(v)), z.number().finite().nonnegative().nullable()),
+  duration_minutes: z.preprocess((v) => (v === '' || v === undefined || v === null ? null : Number(v)), z.number().int().nonnegative().nullable()),
+  weight_tier: z.union([z.string().trim(), z.literal(''), z.undefined()]).optional(),
+  client_bookable: z.boolean().optional().default(false),
+})
+
+const ownerPatchSchema = z.object({
+  full_name: z.string().trim().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  email: z.union([z.email(), z.literal(''), z.undefined()]).optional(),
+})
 
 // ---------------- auth helpers ----------------
 async function createSession(ownerId = null, staffId = null) {
@@ -41,6 +120,12 @@ async function auth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Not logged in' })
   const s = await dbGet('SELECT * FROM sessions WHERE token = $1', [token])
   if (!s) return res.status(401).json({ error: 'Invalid or expired session' })
+  // Sessions expire after 7 days (column default). Expired tokens are deleted
+  // so a stale session can't be reused even if its token leaks.
+  if (s.expires_at && new Date(s.expires_at) < new Date()) {
+    await dbRun('DELETE FROM sessions WHERE token = $1', [token])
+    return res.status(401).json({ error: 'Session expired, please log in again' })
+  }
   req.session = s
   if (s.owner_id) {
     req.owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [s.owner_id])
@@ -56,6 +141,12 @@ const requireOwner = (req, res, next) => {
   if (req.session === undefined) return authMw(req, res, () => requireOwner(req, res, next))
   return req.owner ? next() : res.status(403).json({ error: 'Client account required' })
 }
+const requireAdmin = (req, res, next) => {
+  if (req.session === undefined) return authMw(req, res, () => requireAdmin(req, res, next))
+  if (!req.staff) return res.status(403).json({ error: 'Admin access required' })
+  if (req.staff.role !== 'admin') return res.status(403).json({ error: 'Only admins can perform this action' })
+  next()
+}
 const requireStaff = (req, res, next) => {
   if (req.session === undefined) return authMw(req, res, () => requireStaff(req, res, next))
   return req.staff ? next() : res.status(403).json({ error: 'Staff access required' })
@@ -66,20 +157,88 @@ async function nextReference() {
   return `PV-${1000 + Number(n) + 1}`
 }
 
-async function sendEmail(owner, type, subject, body) {
-  await dbRun('INSERT INTO notifications (owner_id, booking_id, type, channel, message_body) VALUES ($1, NULL, $2, $3, $4)', [owner.owner_id, type, 'email', body])
+// ---------- booking email helpers ----------
+// Readable date (e.g. "Wednesday, August 20, 2026") for client-facing emails.
+function fmtLongDate(d) {
+  if (!d) return '—'
+  const x = new Date(d + 'T00:00:00')
+  return x.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+// Standard booking details block used in every client-facing booking email and
+// in-app notification. `b` must be a booking row with pet_name / service_name
+// joined in (see BOOKING_EMAIL_SELECT below) so the details always match the
+// booking on record — never re-type them by hand in a message body.
+function bookingSummary(b) {
+  return [
+    `Service: ${b.service_name || '—'}`,
+    `Pet: ${b.pet_name || '—'}`,
+    `Date: ${fmtLongDate(b.booking_date)}`,
+    `Time: ${b.booking_time || '—'}`,
+    `Reference: ${b.reference_code || '—'}`,
+  ].join('\n')
+}
+
+// Booking row + pet/service names. Used wherever an email or notification
+// needs to describe a booking, so the confirmation, cancellation, reschedule
+// and no-show messages all show the exact pet and service that was booked.
+const BOOKING_EMAIL_SELECT = `SELECT b.*, p.name AS pet_name, s.name AS service_name
+  FROM bookings b
+  JOIN pets p ON p.pet_id = b.pet_id
+  JOIN services s ON s.service_id = b.service_id`
+
+// Record an in-app notification for a client and — when Gmail is configured —
+// send the real email. The `channel` column keeps the historical "email"
+// label either way. Booking-level events also link the booking_id so the
+// inbox UI can jump straight to the appointment.
+async function sendEmail(owner, type, subject, body, bookingId = null) {
+  await dbRun(
+    'INSERT INTO notifications (owner_id, booking_id, type, channel, subject, message_body) VALUES ($1, $2, $3, $4, $5, $6)',
+    [owner.owner_id, bookingId, type, 'email', subject, body]
+  )
   console.log(`[email:${type}] to ${owner.email} — ${subject}`)
+  // Simulated when GMAIL_USER / GMAIL_APP_PASSWORD aren't set; never throws.
+  await sendMail({ to: owner.email, subject, text: body, html: emailHtml(subject, body) })
+}
+
+// Record an in-app notification for every active staff member (the whole team
+// sees client reschedule requests so whoever is on shift can act on them).
+// No emails are sent here — only the client who booked receives Gmail; staff
+// see these alerts in their in-app notification bell.
+async function notifyStaff(type, subject, body, bookingId = null) {
+  const rows = await dbAll('SELECT staff_id, email FROM staff WHERE active = 1')
+  for (const r of rows) {
+    await dbRun(
+      'INSERT INTO notifications (staff_id, booking_id, type, channel, subject, message_body) VALUES ($1, $2, $3, $4, $5, $6)',
+      [r.staff_id, bookingId, type, 'email', subject, body]
+    )
+  }
+  console.log(`[notify:${type}] to ${rows.length} staff member(s) — ${subject}`)
 }
 
 // Append a row to the booking audit trail. Called on every status transition
 // and on notable changes (reschedule, staff assignment, client requests).
 async function logBookingStatus(bookingId, fromStatus, toStatus, req, note = null) {
-  const actorRole = req?.staff ? 'staff' : req?.owner ? 'client' : 'system'
+  const actorRole = req?.staff ? (req.staff.role === 'admin' ? 'admin' : 'staff') : req?.owner ? 'client' : 'system'
   const actorName = req?.staff?.full_name || req?.owner?.full_name || null
   await dbRun(
     'INSERT INTO booking_status_log (booking_id, from_status, to_status, note, changed_by_role, changed_by_name) VALUES ($1, $2, $3, $4, $5, $6)',
     [bookingId, fromStatus ?? null, toStatus ?? null, note, actorRole, actorName]
   )
+}
+
+// Append a row to the admin audit trail (admin_action_log) for sensitive
+// actions — suspensions, password resets, staff changes. Logging failures are
+// non-fatal: never fail the request over audit bookkeeping.
+async function logAdminAction(req, action, targetType = null, targetId = null) {
+  try {
+    await dbRun(
+      'INSERT INTO admin_action_log (staff_id, action, target_type, target_id) VALUES ($1, $2, $3, $4)',
+      [req.staff?.staff_id ?? null, action, targetType, targetId]
+    )
+  } catch (e) {
+    console.error('[admin_action_log]', e.message)
+  }
 }
 
 // Normalize a medical record into the frontend's canonical shape. Legacy
@@ -107,11 +266,17 @@ function decorateRecord(r) {
 }
 
 // ---------------- auth routes ----------------
-app.get('/api/demo-accounts', (_req, res) => res.json(DEMO_ACCOUNTS))
+app.get('/api/demo-accounts', (_req, res) => {
+  // Demo credentials are for local development only — never hand out the
+  // one-click logins on a production build (see also Login.jsx gating).
+  if (process.env.NODE_ENV === 'production') return res.json([])
+  res.json(DEMO_ACCOUNTS)
+})
 
-app.post('/api/auth/register', h(async (req, res) => {
+app.post('/api/auth/register', authLimiter, h(async (req, res) => {
   const { full_name, email, phone, password, address } = req.body || {}
   if (!full_name || !email || !phone || !password) return res.status(400).json({ error: 'full_name, email, phone and password are required' })
+  if (!isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address' })
   if (await dbGet('SELECT 1 FROM owners WHERE email = $1', [email])) return res.status(409).json({ error: 'An account with this email already exists' })
   const { rows } = await dbRun(
     'INSERT INTO owners (full_name, email, phone, password_hash, address, account_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING owner_id',
@@ -121,17 +286,21 @@ app.post('/api/auth/register', h(async (req, res) => {
   res.status(201).json({ token: await createSession(owner.owner_id), role: 'client', user: publicOwner(owner) })
 }))
 
-app.post('/api/auth/login', h(async (req, res) => {
+app.post('/api/auth/login', authLimiter, h(async (req, res) => {
   const { email, password } = req.body || {}
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' })
 
   const owner = await dbGet('SELECT * FROM owners WHERE email = $1', [email])
   if (owner && verifyPassword(password, owner.password_hash)) {
+    // Blocked after a valid password so we don't leak account state to
+    // someone guessing credentials.
+    if (owner.status === 'suspended') return res.status(403).json({ error: 'This account has been suspended' })
     return res.json({ token: await createSession(owner.owner_id), role: 'client', user: publicOwner(owner) })
   }
   const staff = await dbGet('SELECT * FROM staff WHERE email = $1', [email])
   if (staff && staff.active && verifyPassword(password, staff.password_hash)) {
-    return res.json({ token: await createSession(null, staff.staff_id), role: 'staff', user: publicStaff(staff) })
+    const staffRole = staff.role === 'admin' ? 'admin' : 'staff'
+    return res.json({ token: await createSession(null, staff.staff_id), role: staffRole, user: publicStaff(staff) })
   }
   res.status(401).json({ error: 'Invalid email or password' })
 }))
@@ -142,7 +311,10 @@ app.post('/api/auth/logout', authMw, h(async (req, res) => {
 }))
 
 app.get('/api/auth/me', authMw, (req, res) => {
-  if (req.staff) return res.json({ role: 'staff', user: publicStaff(req.staff) })
+  if (req.staff) {
+    const staffRole = req.staff.role === 'admin' ? 'admin' : 'staff'
+    return res.json({ role: staffRole, user: publicStaff(req.staff) })
+  }
   if (req.owner) return res.json({ role: 'client', user: publicOwner(req.owner) })
   res.status(401).json({ error: 'Not logged in' })
 })
@@ -166,7 +338,7 @@ app.get('/api/services/categories', h(async (_req, res) => {
 }))
 
 app.get('/api/team', h(async (_req, res) => {
-  res.json(await dbAll("SELECT staff_id, full_name, role, specialization FROM staff WHERE active = 1 ORDER BY role, full_name"))
+  res.json(await dbAll("SELECT staff_id, full_name, role, specialization, photo_url FROM staff WHERE active = 1 ORDER BY role, full_name"))
 }))
 
 app.get('/api/bundles', h(async (_req, res) => {
@@ -184,8 +356,8 @@ app.get('/api/slots', h(async (req, res) => {
 }))
 
 // ---------------- client routes ----------------
-function publicOwner(o) { return { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type } }
-function publicStaff(s) { return { staff_id: s.staff_id, full_name: s.full_name, role: s.role, email: s.email, specialization: s.specialization } }
+function publicOwner(o) { return { owner_id: o.owner_id, full_name: o.full_name, email: o.email, phone: o.phone, address: o.address, account_type: o.account_type, photo_url: o.photo_url || null } }
+function publicStaff(s) { return { staff_id: s.staff_id, full_name: s.full_name, role: s.role, email: s.email, specialization: s.specialization, photo_url: s.photo_url || null } }
 
 app.get('/api/me', authMw, requireOwner, h(async (req, res) => {
   const pets = await dbAll('SELECT * FROM pets WHERE owner_id = $1 ORDER BY created_at DESC', [req.owner.owner_id])
@@ -196,14 +368,26 @@ app.put('/api/me', authMw, requireOwner, h(async (req, res) => {
   const { full_name, phone, address, email } = req.body || {}
   // Email changes require uniqueness (in production a re-verification email
   // would be sent before the address is switched; here we validate + apply).
+  if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address' })
   if (email && email.toLowerCase() !== req.owner.email.toLowerCase()) {
     const clash = await dbGet('SELECT 1 FROM owners WHERE LOWER(email) = LOWER($1) AND owner_id <> $2', [email, req.owner.owner_id])
     if (clash) return res.status(409).json({ error: 'Another account already uses that email' })
   }
-  await dbRun(
-    'UPDATE owners SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone), address = COALESCE($3, address), email = COALESCE($4, email) WHERE owner_id = $5',
-    [full_name || null, phone || null, address || null, email || null, req.owner.owner_id]
-  )
+  // Only provided fields are written ('' → NULL so fields can be cleared);
+  // photo_url is validated separately as a base64 data URL.
+  const fields = { full_name, phone, address, email }
+  const sets = []
+  const params = []
+  for (const [k, v] of Object.entries(fields)) {
+    if (v !== undefined) { params.push(v === '' ? null : v); sets.push(`${k} = $${params.length}`) }
+  }
+  if (req.body?.photo_url !== undefined) {
+    const photo = normalizePhoto(req.body.photo_url)
+    if (!photo.ok) return res.status(400).json({ error: 'Invalid photo — upload a JPG/PNG under 4 MB.' })
+    params.push(photo.value)
+    sets.push(`photo_url = $${params.length}`)
+  }
+  if (sets.length) await dbRun(`UPDATE owners SET ${sets.join(', ')} WHERE owner_id = $${params.length + 1}`, [...params, req.owner.owner_id])
   const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [req.owner.owner_id])
   res.json(publicOwner(owner))
 }))
@@ -232,11 +416,20 @@ app.put('/api/pets/:id', authMw, requireOwner, h(async (req, res) => {
   const pet = await dbGet('SELECT * FROM pets WHERE pet_id = $1 AND owner_id = $2', [req.params.id, req.owner.owner_id])
   if (!pet) return res.status(404).json({ error: 'Pet not found' })
   const { name, species, breed, gender, birthdate, weight_kg } = req.body || {}
-  await dbRun(
-    `UPDATE pets SET name = COALESCE($1, name), species = COALESCE($2, species), breed = COALESCE($3, breed),
-     gender = COALESCE($4, gender), birthdate = COALESCE($5, birthdate), weight_kg = COALESCE($6, weight_kg) WHERE pet_id = $7`,
-    [name || null, species || null, breed || null, gender || null, birthdate || null, weight_kg ?? null, pet.pet_id]
-  )
+  // Only provided fields are written ('' → NULL so fields can be cleared).
+  const fields = { name, species, breed, gender, birthdate, weight_kg }
+  const sets = []
+  const params = []
+  for (const [k, v] of Object.entries(fields)) {
+    if (v !== undefined) { params.push(v === '' ? null : v); sets.push(`${k} = $${params.length}`) }
+  }
+  if (req.body?.photo_url !== undefined) {
+    const photo = normalizePhoto(req.body.photo_url)
+    if (!photo.ok) return res.status(400).json({ error: 'Invalid photo — upload a JPG/PNG under 4 MB.' })
+    params.push(photo.value)
+    sets.push(`photo_url = $${params.length}`)
+  }
+  if (sets.length) await dbRun(`UPDATE pets SET ${sets.join(', ')} WHERE pet_id = $${params.length + 1}`, [...params, pet.pet_id])
   res.json(await dbGet('SELECT * FROM pets WHERE pet_id = $1', [pet.pet_id]))
 }))
 
@@ -308,7 +501,12 @@ app.post('/api/bookings', authMw, requireOwner, h(async (req, res) => {
      JOIN pets p ON p.pet_id = b.pet_id JOIN services s ON s.service_id = b.service_id WHERE b.booking_id = $1`,
     [rows[0].booking_id]
   )
-  await sendEmail(req.owner, 'confirmation', `Booking confirmed ${ref}`, `Hi ${req.owner.full_name}, your ${service.name} for ${pet.name} on ${booking_date} at ${booking_time} is confirmed. Reference: ${ref}.`)
+  // Booking is created as 'pending' — notify that it was received and is
+  // awaiting clinic confirmation (the client gets a separate "confirmed"
+  // notification when staff actually confirms it).
+  await sendEmail(req.owner, 'booking_received', `Booking received — ${ref}`, `Hi ${req.owner.full_name},\n\nWe've received your booking request. Here's a summary:\n\n${bookingSummary(booking)}\n\nWe'll confirm it shortly — you'll get an email as soon as it's approved.\n\n— PetVibe Care 🐾`, rows[0].booking_id)
+  // Alert the team so someone can review + confirm the new booking.
+  await notifyStaff('booking_received', `New booking — ${ref}`, `${req.owner.full_name} booked ${service.name} for ${pet.name} on ${booking_date} at ${booking_time}. Review it in Appointments.`, rows[0].booking_id)
   await logBookingStatus(rows[0].booking_id, null, 'pending', req, 'Booking created by client')
   res.status(201).json(booking)
 }))
@@ -319,8 +517,9 @@ app.post('/api/bookings/:id/cancel', authMw, requireOwner, h(async (req, res) =>
   if (!['pending', 'confirmed'].includes(booking.status)) return res.status(400).json({ error: 'Only pending or confirmed bookings can be cancelled' })
   await dbRun("UPDATE bookings SET status = 'cancelled' WHERE booking_id = $1", [booking.booking_id])
   await logBookingStatus(booking.booking_id, booking.status, 'cancelled', req, 'Cancelled by client')
+  const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
   const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
-  await sendEmail(owner, 'rebooking', `Booking cancelled — ${booking.reference_code}`, `Hi ${owner.full_name}, your booking ${booking.reference_code} for ${booking.booking_date} at ${booking.booking_time} has been cancelled.`)
+  await sendEmail(owner, 'rebooking', `Booking cancelled — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nYour booking has been cancelled. Here are the details:\n\n${bookingSummary(full)}\n\nIf you'd like to book another appointment, you can do so anytime on our site.\n\n— PetVibe Care 🐾`, booking.booking_id)
   res.json({ ok: true })
 }))
 
@@ -338,6 +537,8 @@ app.post('/api/bookings/:id/reschedule-request', authMw, requireOwner, h(async (
     [booking.booking_id, requested_date, requested_time, reason || null]
   )
   await logBookingStatus(booking.booking_id, booking.status, booking.status, req, `Client requested reschedule to ${requested_date} at ${requested_time}${reason ? ` — ${reason}` : ''}`)
+  // Alert the whole team so the request gets approved/declined in Appointments.
+  await notifyStaff('reschedule', `Reschedule request — ${booking.reference_code}`, `${req.owner.full_name} requested to move ${booking.reference_code} to ${requested_date} at ${requested_time}${reason ? ` — ${reason}` : ''}. Review it in Appointments.`, booking.booking_id)
   res.status(201).json(await dbGet('SELECT * FROM reschedule_requests WHERE request_id = $1', [rows[0].request_id]))
 }))
 
@@ -360,24 +561,38 @@ app.get('/api/bookings/:id/history', authMw, requireOwner, h(async (req, res) =>
   res.json({ history, reschedule_requests: rescheduleRequests })
 }))
 
+// Client in-app notifications (booking confirmations, reschedules, etc.).
+app.get('/api/notifications', authMw, requireOwner, h(async (req, res) => {
+  const notifications = await dbAll(
+    'SELECT * FROM notifications WHERE owner_id = $1 ORDER BY sent_at DESC, notification_id DESC LIMIT 30',
+    [req.owner.owner_id]
+  )
+  res.json({ notifications, unread: notifications.filter((n) => !n.read_at).length })
+}))
+
+app.post('/api/notifications/read', authMw, requireOwner, h(async (req, res) => {
+  await dbRun('UPDATE notifications SET read_at = NOW() WHERE owner_id = $1 AND read_at IS NULL', [req.owner.owner_id])
+  res.json({ ok: true })
+}))
+
 // ---------------- admin routes ----------------
 // ---------------- admin: services CRUD ----------------
 app.get('/api/admin/services', requireStaff, h(async (_req, res) => {
   res.json(await dbAll('SELECT * FROM services ORDER BY category, name'))
 }))
 
-app.post('/api/admin/services', requireStaff, h(async (req, res) => {
-  const { name, category, description, price_min, price_max, duration_minutes, weight_tier, client_bookable } = req.body || {}
-  if (!name || !category || price_min === undefined) return res.status(400).json({ error: 'name, category and price_min are required' })
+app.post('/api/admin/services', requireAdmin, validate(serviceCreateSchema), h(async (req, res) => {
+  // req.body is already validated + stripped by serviceCreateSchema
+  const { name, category, description, price_min, price_max, duration_minutes, weight_tier, client_bookable } = req.body
   const { rows } = await dbRun(
     `INSERT INTO services (name, category, description, price_min, price_max, duration_minutes, weight_tier, client_bookable, active)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1) RETURNING service_id`,
-    [name, category, description || null, Number(price_min), price_max === '' || price_max === undefined ? null : Number(price_max), duration_minutes === '' || duration_minutes === undefined ? null : Number(duration_minutes), weight_tier || null, client_bookable ? 1 : 0]
+    [name, category, description || null, price_min, price_max, duration_minutes, weight_tier || null, client_bookable ? 1 : 0]
   )
   res.status(201).json(await dbGet('SELECT * FROM services WHERE service_id = $1', [rows[0].service_id]))
 }))
 
-app.patch('/api/admin/services/:id', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/services/:id', requireAdmin, h(async (req, res) => {
   const svc = await dbGet('SELECT * FROM services WHERE service_id = $1', [req.params.id])
   if (!svc) return res.status(404).json({ error: 'Service not found' })
   const { name, category, description, price_min, price_max, duration_minutes, weight_tier, client_bookable } = req.body || {}
@@ -395,14 +610,14 @@ app.patch('/api/admin/services/:id', requireStaff, h(async (req, res) => {
   res.json(await dbGet('SELECT * FROM services WHERE service_id = $1', [svc.service_id]))
 }))
 
-app.patch('/api/admin/services/:id/toggle', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/services/:id/toggle', requireAdmin, h(async (req, res) => {
   const svc = await dbGet('SELECT * FROM services WHERE service_id = $1', [req.params.id])
   if (!svc) return res.status(404).json({ error: 'Service not found' })
   await dbRun('UPDATE services SET active = $1 WHERE service_id = $2', [svc.active ? 0 : 1, svc.service_id])
   res.json(await dbGet('SELECT * FROM services WHERE service_id = $1', [svc.service_id]))
 }))
 
-app.get('/api/admin/stats', requireStaff, h(async (req, res) => {
+app.get('/api/admin/stats', requireAdmin, h(async (req, res) => {
   const today = todayStr()
   const totalPets = (await dbGet('SELECT COUNT(*) AS n FROM pets')).n
   const totalOwners = (await dbGet('SELECT COUNT(*) AS n FROM owners')).n
@@ -428,7 +643,7 @@ const OWNER_LIST_SELECT = `SELECT o.*,
   (SELECT COUNT(*) FROM bookings b WHERE b.owner_id = o.owner_id) AS booking_count
   FROM owners o`
 
-app.get('/api/admin/owners', requireStaff, h(async (req, res) => {
+app.get('/api/admin/owners', requireAdmin, h(async (req, res) => {
   const { q, status, account_type } = req.query
   const where = []
   const params = []
@@ -443,7 +658,7 @@ app.get('/api/admin/owners', requireStaff, h(async (req, res) => {
   res.json(await dbAll(sql, params))
 }))
 
-app.get('/api/admin/owners/:id', requireStaff, h(async (req, res) => {
+app.get('/api/admin/owners/:id', requireAdmin, h(async (req, res) => {
   const owner = await dbGet(OWNER_LIST_SELECT + ' WHERE o.owner_id = $1', [req.params.id])
   if (!owner) return res.status(404).json({ error: 'Owner not found' })
   const pets = await dbAll('SELECT * FROM pets WHERE owner_id = $1 ORDER BY created_at DESC', [owner.owner_id])
@@ -451,7 +666,7 @@ app.get('/api/admin/owners/:id', requireStaff, h(async (req, res) => {
   res.json({ owner: { ...owner, password_hash: undefined }, pets, bookings })
 }))
 
-app.patch('/api/admin/owners/:id', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/owners/:id', requireAdmin, validate(ownerPatchSchema), h(async (req, res) => {
   const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [req.params.id])
   if (!owner) return res.status(404).json({ error: 'Owner not found' })
   const { full_name, phone, address, email } = req.body || {}
@@ -469,22 +684,54 @@ app.patch('/api/admin/owners/:id', requireStaff, h(async (req, res) => {
   res.json(publicOwner(await dbGet('SELECT * FROM owners WHERE owner_id = $1', [owner.owner_id])))
 }))
 
-app.patch('/api/admin/owners/:id/status', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/owners/:id/status', requireAdmin, h(async (req, res) => {
   const { status } = req.body || {}
   if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'status must be active or suspended' })
   const { rowCount } = await dbRun('UPDATE owners SET status = $1 WHERE owner_id = $2', [status, req.params.id])
   if (rowCount === 0) return res.status(404).json({ error: 'Owner not found' })
+  await logAdminAction(req, 'owner_status_change', 'owner', Number(req.params.id))
   res.json(await dbGet('SELECT * FROM owners WHERE owner_id = $1', [req.params.id]))
 }))
 
-app.post('/api/admin/owners/:id/reset-password', requireStaff, h(async (req, res) => {
+app.post('/api/admin/owners/:id/reset-password', requireAdmin, h(async (req, res) => {
   const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [req.params.id])
   if (!owner) return res.status(404).json({ error: 'Owner not found' })
   if (owner.account_type === 'walk_in' || !owner.email) return res.status(400).json({ error: 'Walk-in clients have no login to reset' })
   const temp = 'Pv' + randomBytes(4).toString('hex').toUpperCase()
   await dbRun('UPDATE owners SET password_hash = $1 WHERE owner_id = $2', [hashPassword(temp), owner.owner_id])
+  await logAdminAction(req, 'owner_password_reset', 'owner', owner.owner_id)
   await sendEmail(owner, 'confirmation', `Password reset for your PetVibe account`, `Hi ${owner.full_name}, your temporary password is ${temp}. Please change it after logging in.`)
   res.json({ ok: true, temp_password: temp })
+}))
+
+// Staff-only: permanently delete a client account and everything attached to
+// it — pets, medical records, bookings, notifications, sessions. The schema's
+// FKs only cascade for pets/records/sessions, so the rest is removed in
+// dependency order inside one transaction (all-or-nothing).
+app.delete('/api/admin/owners/:id', requireAdmin, h(async (req, res) => {
+  const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [req.params.id])
+  if (!owner) return res.status(404).json({ error: 'Client not found' })
+  await withTransaction(async (tx) => {
+    const q = (sql, params = []) => tx.query(sql, params)
+    // Booking-dependent rows first (notifications can be staff-addressed too,
+    // so they're removed by booking_id, not just owner_id).
+    const { rows: bids } = await q('SELECT booking_id FROM bookings WHERE owner_id = $1', [owner.owner_id])
+    for (const b of bids) {
+      await q('DELETE FROM notifications WHERE booking_id = $1', [b.booking_id])
+      await q('DELETE FROM medical_records WHERE booking_id = $1', [b.booking_id])
+      await q('DELETE FROM reschedule_requests WHERE booking_id = $1', [b.booking_id])
+      await q('DELETE FROM booking_status_log WHERE booking_id = $1', [b.booking_id])
+    }
+    await q('DELETE FROM notifications WHERE owner_id = $1', [owner.owner_id])
+    await q('DELETE FROM bookings WHERE owner_id = $1', [owner.owner_id])
+    // Pets cascade their own medical_records; sessions cascade too, but they're
+    // deleted explicitly for clarity.
+    await q('DELETE FROM pets WHERE owner_id = $1', [owner.owner_id])
+    await q('DELETE FROM sessions WHERE owner_id = $1', [owner.owner_id])
+    await q('DELETE FROM owners WHERE owner_id = $1', [owner.owner_id])
+  })
+  await logAdminAction(req, 'owner_delete', 'owner', owner.owner_id)
+  res.json({ ok: true })
 }))
 
 const BOOKING_SELECT = `SELECT b.*, o.full_name AS owner_name, o.phone AS owner_phone, o.email AS owner_email,
@@ -497,7 +744,7 @@ const BOOKING_SELECT = `SELECT b.*, o.full_name AS owner_name, o.phone AS owner_
   JOIN services s ON s.service_id = b.service_id
   LEFT JOIN staff st ON st.staff_id = b.staff_id`
 
-app.get('/api/admin/bookings', requireStaff, h(async (req, res) => {
+app.get('/api/admin/bookings', requireAdmin, h(async (req, res) => {
   const { status, date, service, q } = req.query
   const where = []
   const params = []
@@ -513,7 +760,7 @@ app.get('/api/admin/bookings', requireStaff, h(async (req, res) => {
   res.json(await dbAll(sql, params))
 }))
 
-app.get('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
+app.get('/api/admin/bookings/:id', requireAdmin, h(async (req, res) => {
   const booking = await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1', [req.params.id])
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
   const records = await dbAll(
@@ -525,7 +772,7 @@ app.get('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
 
 const TRANSITIONS = { pending: ['confirmed', 'completed', 'cancelled', 'no_show'], confirmed: ['completed', 'cancelled', 'no_show'], completed: [], cancelled: [], no_show: ['rebooked'], rebooked: ['confirmed'] }
 
-app.patch('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/bookings/:id', requireAdmin, h(async (req, res) => {
   const booking = await dbGet('SELECT * FROM bookings WHERE booking_id = $1', [req.params.id])
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
   const { status, staff_id, booking_date, booking_time } = req.body || {}
@@ -533,7 +780,12 @@ app.patch('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
   if (status) {
     if (!TRANSITIONS[booking.status]?.includes(status)) return res.status(400).json({ error: `Cannot move booking from ${booking.status} to ${status}` })
     await dbRun('UPDATE bookings SET status = $1 WHERE booking_id = $2', [status, booking.booking_id])
-    await logBookingStatus(booking.booking_id, booking.status, status, req, body.note || null)
+    await logBookingStatus(booking.booking_id, booking.status, status, req, req.body?.note || null)
+    if (status === 'confirmed') {
+      const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
+      const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
+      await sendEmail(owner, 'confirmation', `Booking confirmed — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nGreat news — your booking is confirmed!\n\n${bookingSummary(full)}\n\nWe look forward to seeing you and ${full.pet_name}.\n\n— PetVibe Care 🐾`, booking.booking_id)
+    }
     if (status === 'completed') {
       // Auto-log the visit so the client sees it in their pet's medical history
       // (no manual record entry needed for a straightforward completed visit).
@@ -547,10 +799,11 @@ app.patch('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
       }
     }
     if (status === 'no_show') {
+      const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
       const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
       const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
       const t = tomorrow.toISOString().slice(0, 10)
-      await sendEmail(owner, 'rebooking', `Rebooking options for ${booking.reference_code}`, `Your slot ${booking.reference_code} was forfeited due to late arrival. Please rebook: ${t} at 10:00, ${t} at 14:00, or ${t} at 16:00.`)
+      await sendEmail(owner, 'rebooking', `Rebooking options — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nUnfortunately your appointment was marked as a no-show, so the slot has been released.\n\n${bookingSummary(full)}\n\nYou're welcome to rebook — ${fmtLongDate(t)} at 10:00, 14:00, or 16:00.\n\n— PetVibe Care 🐾`, booking.booking_id)
     }
   }
   if (staff_id) {
@@ -571,7 +824,7 @@ app.patch('/api/admin/bookings/:id', requireStaff, h(async (req, res) => {
 
 // Staff-only: reschedule a booking, checking slot conflicts and the assigned
 // staff member's schedule availability before moving it.
-app.patch('/api/admin/bookings/:id/reschedule', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/bookings/:id/reschedule', requireAdmin, h(async (req, res) => {
   const booking = await dbGet('SELECT * FROM bookings WHERE booking_id = $1', [req.params.id])
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
   const { booking_date, booking_time } = req.body || {}
@@ -592,13 +845,14 @@ app.patch('/api/admin/bookings/:id/reschedule', requireStaff, h(async (req, res)
   const from = `${booking.booking_date} ${booking.booking_time}`
   await dbRun('UPDATE bookings SET booking_date = $1, booking_time = $2 WHERE booking_id = $3', [booking_date, booking_time, booking.booking_id])
   await logBookingStatus(booking.booking_id, booking.status, booking.status, req, `Rescheduled from ${from} to ${booking_date} at ${booking_time}`)
+  const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
   const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
-  await sendEmail(owner, 'confirmation', `Appointment moved — ${booking.reference_code}`, `Hi ${owner.full_name}, your appointment ${booking.reference_code} has been moved to ${booking_date} at ${booking_time}.`)
+  await sendEmail(owner, 'confirmation', `Appointment moved — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nYour appointment has been rescheduled. Here are your updated details:\n\n${bookingSummary(full)}\n\nSee you then!\n\n— PetVibe Care 🐾`, booking.booking_id)
   res.json(await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id]))
 }))
 
 // Staff-only: assign / reassign the staff member handling this appointment.
-app.patch('/api/admin/bookings/:id/assign', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/bookings/:id/assign', requireAdmin, h(async (req, res) => {
   const booking = await dbGet('SELECT * FROM bookings WHERE booking_id = $1', [req.params.id])
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
   const { staff_id } = req.body || {}
@@ -610,7 +864,7 @@ app.patch('/api/admin/bookings/:id/assign', requireStaff, h(async (req, res) => 
   res.json(await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id]))
 }))
 
-// Staff-only: audit trail + client reschedule requests for one booking.
+// Audit trail + client reschedule requests for one booking.
 app.get('/api/admin/bookings/:id/history', requireStaff, h(async (req, res) => {
   const booking = await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1', [req.params.id])
   if (!booking) return res.status(404).json({ error: 'Booking not found' })
@@ -621,7 +875,7 @@ app.get('/api/admin/bookings/:id/history', requireStaff, h(async (req, res) => {
 
 // Staff-only: approve / decline a client's reschedule request. Approving
 // applies the requested slot (with conflict re-check) and logs the change.
-app.patch('/api/admin/bookings/:id/reschedule-request/:reqId', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/bookings/:id/reschedule-request/:reqId', requireAdmin, h(async (req, res) => {
   const { action } = req.body || {}
   if (!['approve', 'decline'].includes(action)) return res.status(400).json({ error: 'action must be approve or decline' })
   const rq = await dbGet('SELECT * FROM reschedule_requests WHERE request_id = $1 AND booking_id = $2', [req.params.reqId, req.params.id])
@@ -638,16 +892,20 @@ app.patch('/api/admin/bookings/:id/reschedule-request/:reqId', requireStaff, h(a
     await dbRun('UPDATE bookings SET booking_date = $1, booking_time = $2 WHERE booking_id = $3', [rq.requested_date, rq.requested_time, booking.booking_id])
     await dbRun("UPDATE reschedule_requests SET status = 'approved' WHERE request_id = $1", [rq.request_id])
     await logBookingStatus(booking.booking_id, booking.status, booking.status, req, `Client reschedule approved: ${from} → ${rq.requested_date} at ${rq.requested_time}`)
+    const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
     const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
-    await sendEmail(owner, 'confirmation', `Reschedule approved — ${booking.reference_code}`, `Hi ${owner.full_name}, your request to move ${booking.reference_code} to ${rq.requested_date} at ${rq.requested_time} has been approved.`)
+    await sendEmail(owner, 'reschedule', `Reschedule approved — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nYour reschedule request has been approved! Here are your updated details:\n\n${bookingSummary(full)}\n\nSee you then!\n\n— PetVibe Care 🐾`, booking.booking_id)
   } else {
     await dbRun("UPDATE reschedule_requests SET status = 'declined' WHERE request_id = $1", [rq.request_id])
     await logBookingStatus(booking.booking_id, booking.status, booking.status, req, `Client reschedule request declined: ${rq.requested_date} at ${rq.requested_time}`)
+    const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
+    const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
+    await sendEmail(owner, 'reschedule', `Reschedule request declined — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nUnfortunately your request to move your appointment was declined.\n\n${bookingSummary(full)}\n\nIf you'd like a different time, please contact the clinic or request a new slot from your portal.\n\n— PetVibe Care 🐾`, booking.booking_id)
   }
   res.json(await dbGet('SELECT * FROM reschedule_requests WHERE request_id = $1', [rq.request_id]))
 }))
 
-app.post('/api/admin/bookings', requireStaff, h(async (req, res) => {
+app.post('/api/admin/bookings', requireAdmin, h(async (req, res) => {
   const { owner_id, pet_id, service_id, staff_id, booking_date, booking_time, notes } = req.body || {}
   if (!owner_id || !pet_id || !service_id || !booking_date || !booking_time) return res.status(400).json({ error: 'owner, pet, service, date and time are required' })
   const clash = await dbGet(
@@ -698,6 +956,16 @@ app.get('/api/admin/pets/:id', requireStaff, h(async (req, res) => {
   res.json({ pet, records: records.map(decorateRecord), bookings })
 }))
 
+// Set / clear a pet's photo ('' removes it).
+app.patch('/api/admin/pets/:id/photo', requireAdmin, h(async (req, res) => {
+  const pet = await dbGet('SELECT * FROM pets WHERE pet_id = $1', [req.params.id])
+  if (!pet) return res.status(404).json({ error: 'Pet not found' })
+  const photo = normalizePhoto(req.body?.photo_url)
+  if (!photo.ok) return res.status(400).json({ error: 'Invalid photo — upload a JPG/PNG under 4 MB.' })
+  await dbRun('UPDATE pets SET photo_url = $1 WHERE pet_id = $2', [photo.value, pet.pet_id])
+  res.json(await dbGet('SELECT * FROM pets WHERE pet_id = $1', [pet.pet_id]))
+}))
+
 app.get('/api/admin/pets/:id/records', requireStaff, h(async (req, res) => {
   const pet = await dbGet('SELECT * FROM pets WHERE pet_id = $1', [req.params.id])
   if (!pet) return res.status(404).json({ error: 'Pet not found' })
@@ -711,7 +979,7 @@ app.get('/api/admin/pets/:id/records', requireStaff, h(async (req, res) => {
   res.json(records.map(decorateRecord))
 }))
 
-app.post('/api/admin/pets/:id/records', requireStaff, h(async (req, res) => {
+app.post('/api/admin/pets/:id/records', requireAdmin, h(async (req, res) => {
   const { visit_date, record_date, diagnosis, treatment_notes, notes, vaccinations_given, weight_at_visit, next_due_date, booking_id, staff_id, record_type, type, title } = req.body || {}
   const date = record_date || visit_date
   if (!date) return res.status(400).json({ error: 'record_date (visit date) is required' })
@@ -723,7 +991,7 @@ app.post('/api/admin/pets/:id/records', requireStaff, h(async (req, res) => {
   res.status(201).json(decorateRecord(await dbGet('SELECT * FROM medical_records WHERE record_id = $1', [rows[0].record_id])))
 }))
 
-app.patch('/api/admin/records/:id', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/records/:id', requireAdmin, h(async (req, res) => {
   const rec = await dbGet('SELECT * FROM medical_records WHERE record_id = $1', [req.params.id])
   if (!rec) return res.status(404).json({ error: 'Record not found' })
   const b = req.body || {}
@@ -748,7 +1016,7 @@ app.patch('/api/admin/records/:id', requireStaff, h(async (req, res) => {
   res.json(decorateRecord(await dbGet('SELECT * FROM medical_records WHERE record_id = $1', [rec.record_id])))
 }))
 
-app.delete('/api/admin/records/:id', requireStaff, h(async (req, res) => {
+app.delete('/api/admin/records/:id', requireAdmin, h(async (req, res) => {
   const { rowCount } = await dbRun('DELETE FROM medical_records WHERE record_id = $1', [req.params.id])
   if (rowCount === 0) return res.status(404).json({ error: 'Record not found' })
   res.json({ ok: true })
@@ -761,31 +1029,44 @@ app.get('/api/admin/staff', requireStaff, h(async (_req, res) => {
   res.json(staff.map((s) => ({ ...s, password_hash: undefined, appointment_count: byStaff[s.staff_id] || 0 })))
 }))
 
-app.post('/api/admin/staff', requireStaff, h(async (req, res) => {
-  const { full_name, role, email, specialization } = req.body || {}
-  if (!full_name || !role) return res.status(400).json({ error: 'full_name and role are required' })
+app.post('/api/admin/staff', requireAdmin, validate(staffCreateSchema), h(async (req, res) => {
+  // req.body is already validated + stripped by staffCreateSchema
+  const { full_name, role, email, specialization } = req.body
   const { rows } = await dbRun(
     'INSERT INTO staff (full_name, role, email, specialization, active) VALUES ($1, $2, $3, $4, 1) RETURNING staff_id',
     [full_name, role, email || null, specialization || null]
   )
+  await logAdminAction(req, 'staff_create', 'staff', rows[0].staff_id)
   res.status(201).json(await dbGet('SELECT * FROM staff WHERE staff_id = $1', [rows[0].staff_id]))
 }))
 
-app.patch('/api/admin/staff/:id/toggle', requireStaff, h(async (req, res) => {
+app.patch('/api/admin/staff/:id/toggle', requireAdmin, h(async (req, res) => {
   const staff = await dbGet('SELECT * FROM staff WHERE staff_id = $1', [req.params.id])
   if (!staff) return res.status(404).json({ error: 'Staff not found' })
   await dbRun('UPDATE staff SET active = $1 WHERE staff_id = $2', [staff.active ? 0 : 1, staff.staff_id])
+  await logAdminAction(req, 'staff_toggle', 'staff', staff.staff_id)
   res.json(await dbGet('SELECT * FROM staff WHERE staff_id = $1', [staff.staff_id]))
 }))
 
-app.get('/api/admin/schedule', requireStaff, h(async (_req, res) => {
+// Set / clear a staff member's profile photo ('' removes it).
+app.patch('/api/admin/staff/:id/photo', requireAdmin, h(async (req, res) => {
+  const staff = await dbGet('SELECT * FROM staff WHERE staff_id = $1', [req.params.id])
+  if (!staff) return res.status(404).json({ error: 'Staff not found' })
+  const photo = normalizePhoto(req.body?.photo_url)
+  if (!photo.ok) return res.status(400).json({ error: 'Invalid photo — upload a JPG/PNG under 4 MB.' })
+  await dbRun('UPDATE staff SET photo_url = $1 WHERE staff_id = $2', [photo.value, staff.staff_id])
+  await logAdminAction(req, 'staff_photo_update', 'staff', staff.staff_id)
+  res.json(await dbGet('SELECT * FROM staff WHERE staff_id = $1', [staff.staff_id]))
+}))
+
+app.get('/api/admin/schedule', requireAdmin, h(async (_req, res) => {
   const schedules = await dbAll(
     'SELECT sc.*, st.full_name AS staff_name, st.role AS staff_role FROM staff_schedules sc JOIN staff st ON st.staff_id = sc.staff_id ORDER BY st.full_name, sc.day_of_week'
   )
   res.json(schedules)
 }))
 
-app.post('/api/admin/schedule', requireStaff, h(async (req, res) => {
+app.post('/api/admin/schedule', requireAdmin, h(async (req, res) => {
   const { staff_id, day_of_week, start_time, end_time, is_available } = req.body || {}
   if (!staff_id || day_of_week === undefined || !start_time || !end_time) return res.status(400).json({ error: 'staff, day_of_week, start_time and end_time are required' })
   const { rows } = await dbRun(
@@ -795,14 +1076,15 @@ app.post('/api/admin/schedule', requireStaff, h(async (req, res) => {
   res.status(201).json(await dbGet('SELECT * FROM staff_schedules WHERE schedule_id = $1', [rows[0].schedule_id]))
 }))
 
-app.delete('/api/admin/schedule/:id', requireStaff, h(async (req, res) => {
+app.delete('/api/admin/schedule/:id', requireAdmin, h(async (req, res) => {
   await dbRun('DELETE FROM staff_schedules WHERE schedule_id = $1', [req.params.id])
   res.json({ ok: true })
 }))
 
-app.post('/api/admin/walkin', requireStaff, h(async (req, res) => {
+app.post('/api/admin/walkin', requireAdmin, h(async (req, res) => {
   const { owner, pet, booking } = req.body || {}
   if (!owner?.full_name || !owner?.phone) return res.status(400).json({ error: 'Owner name and phone are required for walk-ins' })
+  if (owner.email && !isValidEmail(owner.email)) return res.status(400).json({ error: 'Please enter a valid email address' })
   if (!pet?.name || !booking?.service_id || !booking?.booking_date || !booking?.booking_time) {
     return res.status(400).json({ error: 'Pet name, service, date and time are required' })
   }
@@ -833,7 +1115,7 @@ app.post('/api/admin/walkin', requireStaff, h(async (req, res) => {
   res.status(201).json({ owner_id: ownerId, pet_id: petId, booking_id: bookingRow.rows[0].booking_id, reference_code: ref })
 }))
 
-app.get('/api/admin/analytics', requireStaff, h(async (_req, res) => {
+app.get('/api/admin/analytics', requireAdmin, h(async (_req, res) => {
   // bookings per day, last 14 days
   const days = []
   const today = new Date()
@@ -870,14 +1152,101 @@ app.get('/api/admin/analytics', requireStaff, h(async (_req, res) => {
   res.json({ bookingsByDay, revenueByService, staffPerformance, statusBreakdown, topServices })
 }))
 
-app.get('/api/admin/notifications', requireStaff, h(async (_req, res) => {
-  res.json(await dbAll(
-    'SELECT n.*, o.full_name AS owner_name, o.email AS owner_email FROM notifications n JOIN owners o ON o.owner_id = n.owner_id ORDER BY n.sent_at DESC LIMIT 20'
-  ))
+// Staff schedule: read-only view for any staff member (admin or regular).
+app.get('/api/staff/schedule', requireStaff, h(async (req, res) => {
+  const schedules = await dbAll(
+    'SELECT sc.*, st.full_name AS staff_name, st.role AS staff_role FROM staff_schedules sc JOIN staff st ON st.staff_id = sc.staff_id ORDER BY st.full_name, sc.day_of_week'
+  )
+  res.json(schedules)
+}))
+
+// Staff bookings: only bookings assigned to this staff member.
+app.get('/api/staff/bookings', requireStaff, h(async (req, res) => {
+  const { status, date, q } = req.query
+  const where = ['b.staff_id = $1']
+  const params = [req.staff.staff_id]
+  if (status) { params.push(status); where.push(`b.status = $${params.length}`) }
+  if (date) { params.push(date); where.push(`b.booking_date = $${params.length}`) }
+  if (q) {
+    params.push(`%${q}%`)
+    const i = params.length
+    where.push(`(o.full_name LIKE $${i} OR p.name LIKE $${i} OR b.reference_code LIKE $${i})`)
+  }
+  const sql = BOOKING_SELECT + ' WHERE ' + where.join(' AND ') + ' ORDER BY b.booking_date, b.booking_time'
+  res.json(await dbAll(sql, params))
+}))
+
+// Staff booking detail: view a single booking assigned to this staff member.
+app.get('/api/staff/bookings/:id', requireStaff, h(async (req, res) => {
+  const booking = await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1 AND b.staff_id = $2', [req.params.id, req.staff.staff_id])
+  if (!booking) return res.status(404).json({ error: 'Booking not found' })
+  const records = await dbAll(
+    'SELECT mr.*, st.full_name AS staff_name FROM medical_records mr LEFT JOIN staff st ON st.staff_id = mr.staff_id WHERE mr.booking_id = $1',
+    [booking.booking_id]
+  )
+  res.json({ booking, records: records.map(decorateRecord) })
+}))
+
+// Staff booking actions: status transitions (confirm, complete, no-show) for
+// bookings assigned to this staff member.
+app.patch('/api/staff/bookings/:id', requireStaff, h(async (req, res) => {
+  const booking = await dbGet('SELECT * FROM bookings WHERE booking_id = $1 AND staff_id = $2', [req.params.id, req.staff.staff_id])
+  if (!booking) return res.status(404).json({ error: 'Booking not found or not assigned to you' })
+  const { status } = req.body || {}
+  if (!status) return res.status(400).json({ error: 'status is required' })
+  if (!TRANSITIONS[booking.status]?.includes(status)) return res.status(400).json({ error: `Cannot move booking from ${booking.status} to ${status}` })
+  await dbRun('UPDATE bookings SET status = $1 WHERE booking_id = $2', [status, booking.booking_id])
+  await logBookingStatus(booking.booking_id, booking.status, status, req, req.body?.note || null)
+  if (status === 'confirmed') {
+    const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
+    const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
+    await sendEmail(owner, 'confirmation', `Booking confirmed — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nGreat news — your booking is confirmed!\n\n${bookingSummary(full)}\n\nWe look forward to seeing you and ${full.pet_name}.\n\n— PetVibe Care 🐾`, booking.booking_id)
+  }
+  if (status === 'completed') {
+    const existing = await dbGet('SELECT 1 FROM medical_records WHERE booking_id = $1', [booking.booking_id])
+    if (!existing) {
+      await dbRun(
+        `INSERT INTO medical_records (pet_id, booking_id, visit_date, staff_id, diagnosis, treatment_notes)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [booking.pet_id, booking.booking_id, booking.booking_date, req.staff.staff_id, 'Completed visit', null]
+      )
+    }
+  }
+  if (status === 'no_show') {
+    const full = await dbGet(BOOKING_EMAIL_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id])
+    const owner = await dbGet('SELECT * FROM owners WHERE owner_id = $1', [booking.owner_id])
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1)
+    const t = tomorrow.toISOString().slice(0, 10)
+    await sendEmail(owner, 'rebooking', `Rebooking options — ${booking.reference_code}`, `Hi ${owner.full_name},\n\nUnfortunately your appointment was marked as a no-show, so the slot has been released.\n\n${bookingSummary(full)}\n\nYou're welcome to rebook — ${fmtLongDate(t)} at 10:00, 14:00, or 16:00.\n\n— PetVibe Care 🐾`, booking.booking_id)
+  }
+  res.json(await dbGet(BOOKING_SELECT + ' WHERE b.booking_id = $1', [booking.booking_id]))
+}))
+
+// Staff in-app notifications. Only rows addressed to this staff member are
+// returned — client-targeted rows (owner_id set, staff_id NULL) must never
+// leak into the admin feed. LEFT JOIN keeps owner info on rows where it
+// exists, and drops nothing else.
+app.get('/api/admin/notifications', requireStaff, h(async (req, res) => {
+  const notifications = await dbAll(
+    `SELECT n.*, o.full_name AS owner_name, o.email AS owner_email
+     FROM notifications n LEFT JOIN owners o ON o.owner_id = n.owner_id
+     WHERE n.staff_id = $1
+     ORDER BY n.sent_at DESC, n.notification_id DESC LIMIT 30`,
+    [req.staff.staff_id]
+  )
+  res.json({ notifications, unread: notifications.filter((n) => !n.read_at).length })
+}))
+
+app.post('/api/admin/notifications/read', requireStaff, h(async (req, res) => {
+  await dbRun(
+    'UPDATE notifications SET read_at = NOW() WHERE staff_id = $1 AND read_at IS NULL',
+    [req.staff.staff_id]
+  )
+  res.json({ ok: true })
 }))
 
 // ---------------- admin: printable reports ----------------
-app.get('/api/admin/reports/appointments', requireStaff, h(async (req, res) => {
+app.get('/api/admin/reports/appointments', requireAdmin, h(async (req, res) => {
   const { from, to, staff } = req.query
   if (!from || !to) return res.status(400).json({ error: 'from and to dates are required' })
   const where = ['b.booking_date >= $1', 'b.booking_date <= $2']
@@ -887,7 +1256,7 @@ app.get('/api/admin/reports/appointments', requireStaff, h(async (req, res) => {
   res.json({ from, to, staff: staff || null, rows })
 }))
 
-app.get('/api/admin/reports/pet/:id/medical', requireStaff, h(async (req, res) => {
+app.get('/api/admin/reports/pet/:id/medical', requireAdmin, h(async (req, res) => {
   const pet = await dbGet(
     'SELECT p.*, o.full_name AS owner_name, o.phone AS owner_phone, o.email AS owner_email, o.address AS owner_address FROM pets p JOIN owners o ON o.owner_id = p.owner_id WHERE p.pet_id = $1',
     [req.params.id]
@@ -903,7 +1272,7 @@ app.get('/api/admin/reports/pet/:id/medical', requireStaff, h(async (req, res) =
   res.json({ pet, records: records.map(decorateRecord) })
 }))
 
-app.get('/api/admin/reports/analytics', requireStaff, h(async (req, res) => {
+app.get('/api/admin/reports/analytics', requireAdmin, h(async (req, res) => {
   const { from, to } = req.query
   if (!from || !to) return res.status(400).json({ error: 'from and to dates are required' })
   const range = 'b.booking_date >= $1 AND b.booking_date <= $2'
@@ -930,10 +1299,18 @@ app.get('/api/admin/reports/analytics', requireStaff, h(async (req, res) => {
 }))
 
 app.use((err, _req, res, _next) => {
-  console.error(err)
-  res.status(500).json({ error: err.message || 'Server error' })
+  // Body-parser errors carry a status (413 payload too large, 400 bad JSON);
+  // everything else is an unexpected 500. Always returning 500 here made
+  // oversized photo uploads look like server crashes instead of client errors.
+  const status = err.status || err.statusCode || 500
+  if (status >= 500) console.error(err)
+  const message = status === 413 ? 'Upload is too large — max 8 MB.' : (err.message || 'Server error')
+  res.status(status).json({ error: message })
 })
 
 app.listen(PORT, () => {
   console.log(`PetVibe API listening on http://localhost:${PORT}`)
+  console.log(emailConfigured
+    ? '[email] Gmail sending ENABLED'
+    : '[email] Gmail not configured — emails are simulated (set GMAIL_USER/GMAIL_APP_PASSWORD in .env)')
 })

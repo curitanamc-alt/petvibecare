@@ -39,6 +39,35 @@ const STATEMENTS = [
   // Postgres default `pets_species_check`).
   `ALTER TABLE pets DROP CONSTRAINT IF EXISTS pets_species_check`,
   `ALTER TABLE pets ADD CONSTRAINT pets_species_check CHECK (species IN ('dog', 'cat', 'rabbit', 'guinea_pig', 'rat', 'bird', 'pig', 'other'))`,
+
+  // Notifications: support staff recipients + in-app inbox (subject, read_at).
+  // owner_id becomes optional — staff notifications use staff_id instead.
+  `ALTER TABLE notifications ALTER COLUMN owner_id DROP NOT NULL`,
+  `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS staff_id INTEGER REFERENCES staff(staff_id)`,
+  `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS subject TEXT`,
+  `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ`,
+  `ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check`,
+  `ALTER TABLE notifications ADD CONSTRAINT notifications_type_check CHECK (type IN ('confirmation', 'rebooking', 'reminder', 'reschedule', 'booking_received'))`,
+
+  // RBAC cleanup (004): staff.role becomes display-only, sessions expire,
+  // and sensitive admin actions are audited in admin_action_log.
+  `ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_role_check`,
+  `ALTER TABLE staff ADD CONSTRAINT staff_role_check CHECK (role IN ('admin', 'vet', 'groomer', 'front_desk'))`,
+  `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days'`,
+  `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
+  `CREATE TABLE IF NOT EXISTS admin_action_log (
+     log_id      SERIAL PRIMARY KEY,
+     staff_id    INTEGER REFERENCES staff(staff_id),
+     action      TEXT NOT NULL,
+     target_type TEXT,
+     target_id   INTEGER,
+     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   )`,
+
+  // Profile photos (005): base64 data URLs stored in photo_url on clients and
+  // staff (pets already had the column).
+  `ALTER TABLE owners ADD COLUMN IF NOT EXISTS photo_url TEXT`,
+  `ALTER TABLE staff ADD COLUMN IF NOT EXISTS photo_url TEXT`,
 ]
 
 export async function migrate() {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtDate } from '../../lib/api.js'
-import { Badge, Card, Input, Spinner, StatusPill, cx } from '../../components/ui.jsx'
+import { Badge, Button, Card, Input, Modal, Spinner, StatusPill, cx } from '../../components/ui.jsx'
 
 const STATUS_TABS = [
   { key: '', label: 'All' },
@@ -12,6 +12,9 @@ const STATUS_TABS = [
 export default function Clients() {
   const [params, setParams] = useSearchParams()
   const [owners, setOwners] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const q = params.get('q') || ''
   const status = params.get('status') || ''
 
@@ -20,6 +23,20 @@ export default function Clients() {
     if (q) sp.set('q', q)
     if (status) sp.set('status', status)
     api.adminOwners('?' + sp.toString()).then(setOwners).catch(() => setOwners([]))
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
+    setDeleteError('')
+    try {
+      await api.adminDeleteOwner(deleteTarget.owner_id)
+      setDeleteTarget(null)
+      load()
+    } catch (e) {
+      setDeleteError(e.message)
+      setDeleteBusy(false)
+    }
   }
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [q, status])
@@ -82,6 +99,7 @@ export default function Clients() {
                 <th className="px-5 py-4">Pets</th>
                 <th className="px-5 py-4">Bookings</th>
                 <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -104,6 +122,18 @@ export default function Clients() {
                   <td className="px-5 py-4">
                     <AccountStatus status={o.status} accountType={o.account_type} />
                   </td>
+                  <td className="px-5 py-4">
+                    <button
+                      type="button"
+                      onClick={() => { setDeleteError(''); setDeleteTarget(o) }}
+                      title={`Delete ${o.full_name} and all their data`}
+                      className="rounded-lg p-1.5 text-charcoal-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -114,24 +144,66 @@ export default function Clients() {
         <div className="divide-y divide-sage-100 md:hidden">
           {visible.length === 0 && <div className="px-5 py-14 text-center text-charcoal-400">No clients found.</div>}
           {visible.map((o) => (
-            <Link key={o.owner_id} to={`/admin/clients/${o.owner_id}`} className="block px-5 py-4 transition-colors hover:bg-sage-50/60">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-teal-600">{o.full_name}</p>
-                  <p className="truncate text-xs text-charcoal-400">{o.email}</p>
+            <div key={o.owner_id} className="flex items-stretch">
+              <Link to={`/admin/clients/${o.owner_id}`} className="min-w-0 flex-1 px-5 py-4 transition-colors hover:bg-sage-50/60">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-teal-600">{o.full_name}</p>
+                    <p className="truncate text-xs text-charcoal-400">{o.email}</p>
+                  </div>
+                  <AccountStatus status={o.status} accountType={o.account_type} />
                 </div>
-                <AccountStatus status={o.status} accountType={o.account_type} />
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-charcoal-500">
+                  <span className="truncate">📞 {o.phone || '—'}</span>
+                  <span>🐾 {o.pet_count} pet{o.pet_count === 1 ? '' : 's'}</span>
+                  <span className="truncate">📍 {o.address || '—'}</span>
+                  <span>📅 {fmtDate(o.created_at?.slice(0, 10))}</span>
+                </div>
+              </Link>
+              <div className="flex items-center pr-3">
+                <button
+                  type="button"
+                  onClick={() => { setDeleteError(''); setDeleteTarget(o) }}
+                  title={`Delete ${o.full_name} and all their data`}
+                  className="rounded-lg p-2 text-charcoal-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-charcoal-500">
-                <span className="truncate">📞 {o.phone || '—'}</span>
-                <span>🐾 {o.pet_count} pet{o.pet_count === 1 ? '' : 's'}</span>
-                <span className="truncate">📍 {o.address || '—'}</span>
-                <span>📅 {fmtDate(o.created_at?.slice(0, 10))}</span>
-              </div>
-            </Link>
+            </div>
           ))}
         </div>
       </Card>
+
+      {/* Delete confirmation */}
+      <Modal open={!!deleteTarget} onClose={() => !deleteBusy && setDeleteTarget(null)} title="Delete client account">
+        <div className="space-y-5">
+          {deleteTarget && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+              <p className="text-sm leading-relaxed text-red-700">
+                This permanently deletes <b>{deleteTarget.full_name}</b> and everything attached to the account:
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700/90">
+                <li>{deleteTarget.pet_count} pet{deleteTarget.pet_count === 1 ? '' : 's'} and their medical records</li>
+                <li>{deleteTarget.booking_count} booking{deleteTarget.booking_count === 1 ? '' : 's'} and their history</li>
+                <li>Notifications and login sessions</li>
+              </ul>
+              <p className="mt-3 text-sm font-semibold text-red-700">This cannot be undone.</p>
+            </div>
+          )}
+          {deleteError && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-600">{deleteError}</p>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={deleteBusy}>
+              {deleteBusy ? 'Deleting…' : 'Delete account'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api, fmtDate } from '../../lib/api.js'
+import { api, fmtDate, fmtMoney } from '../../lib/api.js'
 import { Button, Card, Field, Input, Modal, Select, Spinner, StatusBadge, Textarea, StatusPill, cx } from '../../components/ui.jsx'
 import { speciesLabel } from '../../lib/species.js'
 
@@ -50,6 +50,15 @@ export default function Appointments() {
   const [selected, setSelected] = useState(new Set())
   const [bulkBusy, setBulkBusy] = useState(false)
   const [recordForm, setRecordForm] = useState({ visit_date: new Date().toISOString().slice(0, 10), diagnosis: '', treatment_notes: '', vaccinations_given: '', weight_at_visit: '', next_due_date: '' })
+  // New-appointment modal state (admin picks client → pet → service → time → staff)
+  const [newOpen, setNewOpen] = useState(false)
+  const [newOwners, setNewOwners] = useState([])
+  const [newOwnerQ, setNewOwnerQ] = useState('')
+  const [newPets, setNewPets] = useState([])
+  const [nb, setNb] = useState({ owner_id: '', pet_id: '', service_id: '', booking_date: new Date().toISOString().slice(0, 10), booking_time: '', staff_id: '', notes: '' })
+  const [newSlots, setNewSlots] = useState({ slots: [], taken: [] })
+  const [newBusy, setNewBusy] = useState(false)
+  const [newError, setNewError] = useState('')
 
   const status = params.get('status') || ''
   const q = params.get('q') || ''
@@ -62,6 +71,15 @@ export default function Appointments() {
   useEffect(() => {
     if (resched?.booking_date) api.slots(resched.booking_date).then(setSlots).catch(() => {})
   }, [resched])
+  useEffect(() => {
+    if (newOpen && nb.booking_date) api.slots(nb.booking_date).then(setNewSlots).catch(() => setNewSlots({ slots: [], taken: [] }))
+  }, [newOpen, nb.booking_date])
+  // Deep-link from the pet detail page: /admin/appointments?new=1&pet=ID auto-opens
+  // the new-appointment modal with that pet preselected.
+  useEffect(() => {
+    if (params.get('new') === '1') openNew()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const setFilter = (k, v) => {
     const sp = new URLSearchParams(params)
@@ -115,6 +133,72 @@ export default function Appointments() {
     refreshHistory(b.booking_id)
   }
 
+  const openNew = async () => {
+    setNewError('')
+    setNewOwners([])
+    setNewOwnerQ('')
+    setNewPets([])
+    setNb({ owner_id: '', pet_id: '', service_id: '', booking_date: new Date().toISOString().slice(0, 10), booking_time: '', staff_id: '', notes: '' })
+    // Prefill from ?new=1&pet=ID (used by "Book this pet" on the pet detail page)
+    const petParam = params.get('pet')
+    if (petParam) {
+      try {
+        const d = await api.adminPet(petParam)
+        if (d?.pet) {
+          const o = await api.adminOwner(d.pet.owner_id)
+          setNb((f) => ({ ...f, owner_id: d.pet.owner_id, pet_id: d.pet.pet_id }))
+          setNewOwnerQ(o?.owner?.full_name || '')
+          setNewPets(o?.pets || [])
+        }
+      } catch { /* prefill is best-effort */ }
+    }
+    setNewOpen(true)
+  }
+
+  const searchNewOwners = async (term) => {
+    setNewOwnerQ(term)
+    if (!term.trim()) { setNewOwners([]); return }
+    try {
+      const list = await api.adminOwners(`?q=${encodeURIComponent(term)}`)
+      setNewOwners(list.slice(0, 6))
+    } catch { setNewOwners([]) }
+  }
+
+  const pickNewOwner = async (oid) => {
+    setNb((f) => ({ ...f, owner_id: oid, pet_id: '' }))
+    setNewPets([])
+    setNewOwners([])
+    try {
+      const d = await api.adminOwner(oid)
+      setNewPets(d?.pets || [])
+    } catch { setNewPets([]) }
+  }
+
+  const createBooking = async () => {
+    if (!nb.owner_id || !nb.pet_id || !nb.service_id || !nb.booking_date || !nb.booking_time) {
+      setNewError('Choose the owner, pet, service, date and time.')
+      return
+    }
+    setNewBusy(true)
+    setNewError('')
+    try {
+      await api.adminCreateBooking({
+        owner_id: Number(nb.owner_id),
+        pet_id: Number(nb.pet_id),
+        service_id: Number(nb.service_id),
+        staff_id: nb.staff_id ? Number(nb.staff_id) : null,
+        booking_date: nb.booking_date,
+        booking_time: nb.booking_time,
+        notes: nb.notes || null,
+      })
+      setNewOpen(false)
+      setParams({}, { replace: true }) // drop ?new=&pet= deep-link params
+      api.adminBookings().then(setBookings).catch(() => {})
+    } catch (e) {
+      setNewError(e.message)
+    } finally { setNewBusy(false) }
+  }
+
   const refreshHistory = async (bookingId) => {
     api.adminBookingHistory(bookingId).then(setHistory).catch(() => {})
   }
@@ -164,9 +248,12 @@ export default function Appointments() {
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="text-2xl font-extrabold text-charcoal-900">Appointments</h1>
-        <p className="mt-1.5 text-sm text-charcoal-500">Approve, reschedule, or complete bookings. Late arrivals can be marked no-show to free the slot.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-charcoal-900">Appointments</h1>
+          <p className="mt-1.5 text-sm text-charcoal-500">Approve, reschedule, or complete bookings. Late arrivals can be marked no-show to free the slot.</p>
+        </div>
+        <Button variant="accent" onClick={openNew}>+ New appointment</Button>
       </div>
 
       {/* ── Filters ── */}
@@ -456,6 +543,105 @@ export default function Appointments() {
               {!s.active && <StatusPill tone="gray">Inactive</StatusPill>}
             </button>
           ))}
+        </div>
+      </Modal>
+
+      {/* New appointment modal — admin picks client, pet, service, time, and staff */}
+      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="New appointment" wide>
+        <div className="space-y-5">
+          {newError && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-600">{newError}</p>
+          )}
+
+          <Field label="Client">
+            <div className="relative">
+              <Input placeholder="Search client by name, email or phone…" value={newOwnerQ} onChange={(e) => searchNewOwners(e.target.value)} />
+              {newOwners.length > 0 && (
+                <div className="absolute z-10 mt-1.5 w-full overflow-hidden rounded-xl border border-sage-200 bg-white shadow-elevated">
+                  {newOwners.map((o) => (
+                    <button
+                      key={o.owner_id}
+                      type="button"
+                      onClick={() => { setNewOwnerQ(o.full_name); pickNewOwner(o.owner_id) }}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-sage-50"
+                    >
+                      <span className="truncate font-medium text-charcoal-800">{o.full_name}</span>
+                      <span className="shrink-0 text-xs text-charcoal-400">{o.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {nb.owner_id && newOwners.length === 0 && (
+              <p className="mt-1.5 text-xs font-semibold text-teal-600">✓ Client selected</p>
+            )}
+          </Field>
+
+          <Field label="Pet">
+            <Select value={nb.pet_id} onChange={(e) => setNb({ ...nb, pet_id: e.target.value })} disabled={!nb.owner_id}>
+              <option value="">{nb.owner_id ? 'Select pet…' : 'Pick a client first'}</option>
+              {newPets.map((p) => (
+                <option key={p.pet_id} value={p.pet_id}>{p.name} ({speciesLabel(p.species)}{p.breed ? `, ${p.breed}` : ''})</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Service">
+            <Select value={nb.service_id} onChange={(e) => setNb({ ...nb, service_id: e.target.value })}>
+              <option value="">Select service…</option>
+              {services.map((s) => (
+                <option key={s.service_id} value={s.service_id}>{s.name} — {fmtMoney(s)}</option>
+              ))}
+            </Select>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Date">
+              <Input type="date" min={new Date().toISOString().slice(0, 10)} value={nb.booking_date} onChange={(e) => setNb({ ...nb, booking_date: e.target.value, booking_time: '' })} />
+            </Field>
+            <Field label="Time">
+              <div className="grid grid-cols-4 gap-1.5">
+                {newSlots.slots.map((t) => {
+                  const taken = newSlots.taken.includes(t)
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={taken}
+                      onClick={() => setNb({ ...nb, booking_time: t })}
+                      className={`rounded-xl border px-1.5 py-2 text-xs font-semibold transition-all duration-200 ${
+                        nb.booking_time === t
+                          ? 'border-teal-600 bg-teal-600 text-white shadow-sm'
+                          : taken
+                            ? 'border-sage-200 text-charcoal-300 line-through'
+                            : 'border-sage-200 hover:border-teal-600 hover:bg-teal-50'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          </div>
+
+          <Field label="Assign staff (optional)">
+            <Select value={nb.staff_id} onChange={(e) => setNb({ ...nb, staff_id: e.target.value })}>
+              <option value="">Unassigned</option>
+              {staffList.filter((s) => s.active).map((s) => (
+                <option key={s.staff_id} value={s.staff_id}>{s.full_name} ({s.role})</option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field label="Notes (optional)">
+            <Textarea value={nb.notes} onChange={(e) => setNb({ ...nb, notes: e.target.value })} placeholder="Reason, symptoms…" />
+          </Field>
+
+          <div className="flex justify-end gap-2.5">
+            <Button variant="ghost" onClick={() => setNewOpen(false)}>Cancel</Button>
+            <Button variant="accent" onClick={createBooking} disabled={newBusy}>{newBusy ? 'Creating…' : 'Create appointment'}</Button>
+          </div>
         </div>
       </Modal>
 

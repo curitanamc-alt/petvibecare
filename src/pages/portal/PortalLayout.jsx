@@ -1,7 +1,9 @@
 import { NavLink, Outlet, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../lib/auth.jsx'
+import { api } from '../../lib/api.js'
 import { Logo } from '../../components/ui.jsx'
+import NotificationsBell from '../../components/NotificationsBell.jsx'
 
 const tab = ({ isActive }) =>
   `flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
@@ -22,7 +24,10 @@ export default function PortalLayout() {
 
   return (
     <div className="min-h-screen bg-sage-50/80">
-      <header className="border-b border-sage-200/60 bg-white/80 backdrop-blur-xl">
+      {/* relative z-30 keeps the header (and the notifications dropdown inside
+          it) above the page content — without it the dropdown gets painted
+          under the main grid that follows in the DOM */}
+      <header className="relative z-30 border-b border-sage-200/60 bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <button
@@ -42,6 +47,11 @@ export default function PortalLayout() {
             <span className="hidden text-sm text-charcoal-400 sm:block">
               Hi, <span className="font-semibold text-charcoal-800">{user?.full_name?.split(' ')[0]}</span>
             </span>
+            <NotificationsBell
+              fetchFn={api.myNotifications}
+              markReadFn={api.markNotificationsRead}
+              emptyText="No notifications yet"
+            />
             <button
               onClick={logout}
               className="rounded-lg px-3 py-1.5 text-sm font-semibold text-charcoal-400 transition-colors hover:bg-red-50 hover:text-red-500"

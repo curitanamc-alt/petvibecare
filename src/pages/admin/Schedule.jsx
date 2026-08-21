@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api.js'
+import { useAuth } from '../../lib/auth.jsx'
 import { Avatar, Button, Card, Field, Input, Modal, Select, Spinner, StatusPill, cx } from '../../components/ui.jsx'
 
 const DAYS = [
@@ -32,6 +33,8 @@ function weekDates() {
 }
 
 export default function Schedule() {
+  const { role } = useAuth()
+  const isAdmin = role === 'admin'
   const [staff, setStaff] = useState([])
   const [schedules, setSchedules] = useState(null)
   const [adding, setAdding] = useState(false)
@@ -69,7 +72,7 @@ export default function Schedule() {
           <h1 className="text-2xl font-extrabold text-charcoal-900">Staff Schedule</h1>
           <p className="mt-1 text-sm text-charcoal-500">Weekly working hours per vet and groomer. Sunday is clinic-closed.</p>
         </div>
-        <Button variant="accent" onClick={() => openAdd()}>+ Add shift</Button>
+        {isAdmin && <Button variant="accent" onClick={() => openAdd()}>+ Add shift</Button>}
       </div>
 
       {/* Summary + legend */}
@@ -115,7 +118,7 @@ export default function Schedule() {
               <div key={s.staff_id} className={cx('grid grid-cols-[220px_repeat(7,1fr)] border-b border-sage-100 transition-colors', 'hover:bg-sage-50/40')}>
                 {/* Staff column */}
                 <div className="flex items-center gap-3 px-5 py-4">
-                  <Avatar name={s.full_name} size="sm" className="bg-teal-700" />
+                  <Avatar name={s.full_name} size="sm" className="bg-teal-700" photoUrl={s.photo_url} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-charcoal-900">{s.full_name}</p>
                     <div className="mt-0.5 flex items-center gap-1.5">
@@ -123,6 +126,7 @@ export default function Schedule() {
                       {s.specialization && <span className="truncate text-[10px] text-charcoal-400">{s.specialization}</span>}
                     </div>
                   </div>
+                  {isAdmin && (
                   <button
                     type="button"
                     title={`Add shift for ${s.full_name}`}
@@ -131,6 +135,7 @@ export default function Schedule() {
                   >
                     +
                   </button>
+                  )}
                 </div>
 
                 {/* Day cells */}
@@ -148,6 +153,7 @@ export default function Schedule() {
                         >
                           <span className="text-sm font-extrabold leading-none">{sc.start_time}</span>
                           <span className="mt-1 text-[10px] font-semibold opacity-80">to {sc.end_time}</span>
+                          {isAdmin && (
                           <button
                             type="button"
                             onClick={async (e) => {
@@ -159,6 +165,7 @@ export default function Schedule() {
                           >
                             ×
                           </button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex w-full items-center justify-center rounded-xl border-2 border-dashed border-sage-200 text-[10px] font-semibold text-charcoal-300">

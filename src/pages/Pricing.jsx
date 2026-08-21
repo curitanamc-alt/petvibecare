@@ -50,7 +50,7 @@ export default function Pricing() {
       <div className="mt-10 rounded-2xl border border-amber-500/20 bg-amber-50 p-6 text-sm text-charcoal-600">
         <p className="font-bold text-amber-600">Good to know</p>
         <p className="mt-2 leading-relaxed">
-          Grooming prices scale by pet size (small → XXXL; cats single tier). Some services — surgery, confinement, diagnostics — are arranged at the clinic, not booked online.
+          Grooming prices scale by pet size (small → XXXL; cats single tier). Some services — surgery, confinement, diagnostics — are arranged at the clinic, not booked online. Payment is made at the clinic after the consultation — the final price is confirmed there.
         </p>
       </div>
 

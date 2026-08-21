@@ -149,69 +149,31 @@ const BUNDLES = [
 
 // ---------- staff ----------
 const STAFF = [
-  { full_name: 'Dr. Ana Reyes', role: 'admin', email: 'admin@petvibe.ph', specialization: 'Clinic Director', active: 1 },
-  { full_name: 'Dr. Marco Lim', role: 'vet', email: 'vet@petvibe.ph', specialization: 'Surgery & Orthopedics', active: 1 },
-  { full_name: 'Dr. Grace Tan', role: 'vet', email: 'grace@petvibe.ph', specialization: 'Internal Medicine & Diagnostics', active: 1 },
-  { full_name: 'Liza Cruz', role: 'groomer', email: 'liza@petvibe.ph', specialization: 'Grooming & Spa', active: 1 },
+  { full_name: 'Dr. Elinor Romero', role: 'admin', email: 'admin@petvibe.ph', specialization: 'Clinic Director', active: 1 },
+  { full_name: 'Dr. Sophia Sayaman', role: 'vet', email: 'vet@petvibe.ph', specialization: 'Surgery & Orthopedics', active: 1, password: 'password123' },
+  { full_name: 'Dr. Marty Palmenco', role: 'vet', email: 'grace@petvibe.ph', specialization: 'Internal Medicine & Diagnostics', active: 1, password: 'password123' },
+  { full_name: 'Dr. Rainiel Pallaya', role: 'vet', email: 'carlo@petvibe.ph', specialization: 'Preventive Care & Wellness', active: 1, password: 'password123' },
+  { full_name: 'Dr. Antoinette Curitana', role: 'groomer', email: 'liza@petvibe.ph', specialization: 'Grooming & Spa', active: 1, password: 'password123' },
 ]
 
 const WEEKLY = [
-  { staff: 'Dr. Ana Reyes', days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00' },
-  { staff: 'Dr. Marco Lim', days: [0, 1, 3, 5, 6], start: '09:00', end: '17:00' },
-  { staff: 'Dr. Grace Tan', days: [1, 2, 4, 5, 6], start: '10:00', end: '18:00' },
-  { staff: 'Liza Cruz', days: [1, 2, 3, 4, 5, 6], start: '10:00', end: '18:00' },
+  { staff: 'Dr. Elinor Romero', days: [1, 2, 3, 4, 5, 6], start: '09:00', end: '17:00' },
+  { staff: 'Dr. Sophia Sayaman', days: [0, 1, 3, 5, 6], start: '09:00', end: '17:00' },
+  { staff: 'Dr. Marty Palmenco', days: [1, 2, 4, 5, 6], start: '10:00', end: '18:00' },
+  { staff: 'Dr. Rainiel Pallaya', days: [1, 2, 3, 5, 6], start: '09:00', end: '17:00' },
+  { staff: 'Dr. Antoinette Curitana', days: [1, 2, 3, 4, 5, 6], start: '10:00', end: '18:00' },
 ]
 
 // ---------- demo owners / pets / bookings ----------
-const OWNERS = [
-  { full_name: 'Maria Santos', email: 'client@petvibe.ph', phone: '0917 555 1234', password_hash: hashPassword('password123'), address: 'Brgy. San Lorenzo, Makati City', account_type: 'registered', status: 'active' },
-  { full_name: 'Juan Dela Cruz', email: 'juan.dc@example.com', phone: '0918 555 9876', password_hash: null, address: 'Tondo, Manila', account_type: 'walk_in', status: 'active' },
-  { full_name: 'Ana Garcia', email: 'ana.garcia@example.com', phone: '0920 555 3344', password_hash: hashPassword('password123'), address: 'Project 8, Quezon City', account_type: 'registered', status: 'active' },
-  { full_name: 'Ramon Bautista', email: 'ramon.b@example.com', phone: '0916 555 7788', password_hash: null, address: 'Calamba, Laguna', account_type: 'registered', status: 'suspended' },
-]
-
-const PETS = [
-  { owner: 'Maria Santos', name: 'Bella', species: 'dog', breed: 'Shih Tzu', gender: 'female', birthdate: '2021-03-14', weight_kg: 5.2 },
-  { owner: 'Maria Santos', name: 'Mochi', species: 'cat', breed: 'Persian', gender: 'male', birthdate: '2022-06-01', weight_kg: 4.1 },
-  { owner: 'Juan Dela Cruz', name: 'Bantay', species: 'dog', breed: 'Aspin', gender: 'male', birthdate: '2019-01-10', weight_kg: 18.0 },
-  { owner: 'Ana Garcia', name: 'Chico', species: 'dog', breed: 'Chihuahua', gender: 'male', birthdate: '2023-09-02', weight_kg: 2.8 },
-  { owner: 'Ramon Bautista', name: 'Muning', species: 'cat', breed: 'Puspin', gender: 'female', birthdate: '2020-12-25', weight_kg: 3.4 },
-  { owner: 'Maria Santos', name: 'Coco', species: 'rabbit', breed: 'Netherland Dwarf', gender: 'female', birthdate: '2023-05-12', weight_kg: 1.1 },
-  { owner: 'Ana Garcia', name: 'Pip', species: 'guinea_pig', breed: 'Abyssinian', gender: 'male', birthdate: '2024-01-20', weight_kg: 0.9 },
-  { owner: 'Ana Garcia', name: 'Nibbles', species: 'rat', breed: 'Fancy Rat', gender: 'male', birthdate: '2024-08-05', weight_kg: 0.35 },
-  { owner: 'Juan Dela Cruz', name: 'Kiko', species: 'bird', breed: 'Cockatiel', gender: 'male', birthdate: '2022-02-14', weight_kg: 0.1 },
-  { owner: 'Ramon Bautista', name: 'Babe', species: 'pig', breed: 'Miniature Pig', gender: 'female', birthdate: '2023-11-30', weight_kg: 22.0 },
-]
-
-const BOOKINGS = [
-  // today — confirmed check-up for Bella
-  { owner: 'Maria Santos', pet: 'Bella', service: 'General Consultation', staff: 'Dr. Grace Tan', date: 0, time: '10:00', status: 'confirmed', created_by: 'client', notes: 'Low appetite since Monday.' },
-  // today — pending grooming for Mochi
-  { owner: 'Maria Santos', pet: 'Mochi', service: 'Bath & Blow Dry — Cat', staff: 'Liza Cruz', date: 0, time: '14:00', status: 'pending', created_by: 'client', notes: 'Matting behind the ears.' },
-  // +3 days — pending x-ray
-  { owner: 'Maria Santos', pet: 'Bella', service: 'Digital X-Ray', staff: null, date: 3, time: '11:00', status: 'pending', created_by: 'client', notes: 'Suspected hip issue, limping.' },
-  // +1 day — pending neuter (admin-created)
-  { owner: 'Juan Dela Cruz', pet: 'Bantay', service: 'Neuter (Male) — Castration', staff: 'Dr. Marco Lim', date: 1, time: '09:00', status: 'pending', created_by: 'admin', notes: 'Walk-in booking made at counter.' },
-  // -6 days — completed check-up w/ medical record
-  { owner: 'Maria Santos', pet: 'Bella', service: 'General Consultation', staff: 'Dr. Grace Tan', date: -6, time: '15:00', status: 'completed', created_by: 'client', notes: 'Annual wellness visit.' },
-  // -5 days — no-show deworming (triggers rebooking email)
-  { owner: 'Maria Santos', pet: 'Bella', service: 'Deworming (Tablet)', staff: 'Dr. Grace Tan', date: -5, time: '09:00', status: 'no_show', created_by: 'client', notes: 'Client arrived 45 minutes late; slot forfeited to walk-in.' },
-  // -20 days — completed vaccine
-  { owner: 'Maria Santos', pet: 'Bella', service: '5-in-1 Vaccine', staff: 'Dr. Marco Lim', date: -20, time: '10:00', status: 'completed', created_by: 'client', notes: null },
-  // -30 days — completed grooming
-  { owner: 'Maria Santos', pet: 'Mochi', service: 'Full Groom Package — Cat', staff: 'Liza Cruz', date: -30, time: '13:00', status: 'completed', created_by: 'client', notes: null },
-  // +1 day — confirmed check-up for Chico
-  { owner: 'Ana Garcia', pet: 'Chico', service: 'General Consultation', staff: 'Dr. Grace Tan', date: 1, time: '16:00', status: 'confirmed', created_by: 'client', notes: 'First visit — deworming due.' },
-  // -12 days — cancelled deworming for Muning
-  { owner: 'Ramon Bautista', pet: 'Muning', service: 'Deworming (Tablet)', staff: null, date: -12, time: '10:00', status: 'cancelled', created_by: 'client', notes: 'Owner cancelled — account under review.' },
-]
-
-const MEDICAL_RECORDS = [
-  { pet: 'Bella', booking: -20, staff: 'Dr. Marco Lim', visit_date: -20, diagnosis: 'Healthy — routine vaccination', treatment_notes: '5-in-1 booster administered. No adverse reaction. Advised heartworm prevention.', vaccinations_given: '5-in-1 Vaccine', weight_at_visit: 5.0, next_due_date: 145, record_type: 'vaccination', title: '5-in-1 booster' },
-  { pet: 'Bella', booking: -6, staff: 'Dr. Grace Tan', visit_date: -6, diagnosis: 'Mild gastritis suspected', treatment_notes: 'Prescribed bland diet for 3 days and GI protectant. Recheck if symptoms persist.', vaccinations_given: null, weight_at_visit: 5.1, next_due_date: null, record_type: 'checkup', title: 'Gastritis check-up' },
-  { pet: 'Bella', booking: null, staff: 'Dr. Marco Lim', visit_date: -90, diagnosis: 'Rabies booster', treatment_notes: 'Rabies vaccination administered. Annual booster is now due.', vaccinations_given: 'Rabies Vaccine', weight_at_visit: 5.1, next_due_date: -10, record_type: 'vaccination', title: 'Rabies booster (due)' },
-  { pet: 'Mochi', booking: -30, staff: 'Liza Cruz', visit_date: -30, diagnosis: 'Healthy — grooming visit', treatment_notes: 'Full groom completed. Minor matting removed behind ears. Skin clear.', vaccinations_given: null, weight_at_visit: 4.0, next_due_date: null, record_type: 'grooming', title: 'Full groom + matting removal' },
-]
+// The demo client dataset (Maria Santos, Juan Dela Cruz, Ana Garcia, Ramon
+// Bautista and their pets/bookings/records) was removed at the clinic's
+// request. It is deliberately NOT seeded anymore, so the deleted accounts
+// never come back on restart. A fresh database now starts with the catalog,
+// bundles and staff only — clients are created through the admin dashboard.
+const OWNERS = []
+const PETS = []
+const BOOKINGS = []
+const MEDICAL_RECORDS = []
 
 // Reference codes are assigned in BOOKINGS array order starting at PV-1001,
 // both in the fresh-install seed below and in the demo-data sync.
@@ -276,9 +238,10 @@ async function syncDemoData() {
   const { n: staffCount } = await dbGet('SELECT COUNT(*) AS n FROM staff')
   if (Number(staffCount) === 0) {
     for (const st of STAFF) {
+      const hash = st.password ? hashPassword(st.password) : (st.role === 'admin' ? hashPassword('password123') : null)
       await dbRun(
         'INSERT INTO staff (full_name, role, email, password_hash, specialization, active) VALUES ($1, $2, $3, $4, $5, $6)',
-        [st.full_name, st.role, st.email, st.role === 'admin' ? hashPassword('password123') : null, st.specialization, st.active]
+        [st.full_name, st.role, st.email, hash, st.specialization, st.active]
       )
     }
     const allStaff = await dbAll('SELECT staff_id, full_name FROM staff')
@@ -289,6 +252,19 @@ async function syncDemoData() {
       }
     }
     console.log(`[seed] restored ${STAFF.length} staff + schedules (staff table was empty)`)
+  }
+
+  // Backfill passwords for existing staff who have none (e.g. vets/groomers
+  // created before the staff-login feature). Admin always gets password123;
+  // other roles get it too so they can log in as staff.
+  for (const st of STAFF) {
+    if (st.password) {
+      const existing = await dbGet('SELECT staff_id, password_hash FROM staff WHERE email = $1', [st.email])
+      if (existing && !existing.password_hash) {
+        await dbRun('UPDATE staff SET password_hash = $1 WHERE staff_id = $2', [hashPassword(st.password), existing.staff_id])
+        console.log(`[seed] backfilled password for ${st.full_name}`)
+      }
+    }
   }
 
   const ownerIdByEmail = {}
@@ -374,16 +350,16 @@ async function syncDemoData() {
   if (Number(logCount) === 0) {
     const logRows = [
       [0, null, 'pending', 'client', 'Maria Santos', 'Booking created by client'],
-      [0, 'pending', 'confirmed', 'staff', 'Dr. Ana Reyes', null],
+      [0, 'pending', 'confirmed', 'admin', 'Dr. Elinor Romero', null],
       [6, null, 'pending', 'client', 'Maria Santos', 'Booking created by client'],
-      [6, 'pending', 'confirmed', 'staff', 'Dr. Ana Reyes', null],
-      [6, 'confirmed', 'completed', 'staff', 'Dr. Marco Lim', null],
+      [6, 'pending', 'confirmed', 'admin', 'Dr. Elinor Romero', null],
+      [6, 'confirmed', 'completed', 'admin', 'Dr. Sophia Sayaman', null],
       [4, null, 'pending', 'client', 'Maria Santos', 'Booking created by client'],
-      [4, 'pending', 'confirmed', 'staff', 'Dr. Ana Reyes', null],
-      [4, 'confirmed', 'completed', 'staff', 'Dr. Grace Tan', null],
+      [4, 'pending', 'confirmed', 'admin', 'Dr. Elinor Romero', null],
+      [4, 'confirmed', 'completed', 'admin', 'Dr. Marty Palmenco', null],
       [5, null, 'pending', 'client', 'Maria Santos', 'Booking created by client'],
-      [5, 'pending', 'confirmed', 'staff', 'Dr. Ana Reyes', null],
-      [5, 'confirmed', 'no_show', 'staff', 'Dr. Ana Reyes', 'Client arrived 45 minutes late; slot forfeited to walk-in'],
+      [5, 'pending', 'confirmed', 'admin', 'Dr. Elinor Romero', null],
+      [5, 'confirmed', 'no_show', 'admin', 'Dr. Elinor Romero', 'Client arrived 45 minutes late; slot forfeited to walk-in'],
     ]
     for (const [idx, from, to, role, name, note] of logRows) {
       const bid = bookingIdByRef[refFor(idx)]
@@ -441,9 +417,10 @@ export async function seed() {
 
   const staffIdByName = {}
   for (const st of STAFF) {
+    const hash = st.password ? hashPassword(st.password) : (st.role === 'admin' ? hashPassword('password123') : null)
     const { rows } = await dbRun(
       'INSERT INTO staff (full_name, role, email, password_hash, specialization, active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING staff_id',
-      [st.full_name, st.role, st.email, st.role === 'admin' ? hashPassword('password123') : null, st.specialization, st.active]
+      [st.full_name, st.role, st.email, hash, st.specialization, st.active]
     )
     staffIdByName[st.full_name] = rows[0].staff_id
   }
@@ -510,17 +487,6 @@ export async function seed() {
     )
   }
 
-  // Notifications — confirmation email for today's confirmed booking, rebooking email for the no-show
-  await dbRun(
-    'INSERT INTO notifications (owner_id, booking_id, type, channel, message_body) VALUES ($1, $2, $3, $4, $5)',
-    [ownerIdByName['Maria Santos'], bookingIdByKey['Bella:0:10:00'], 'confirmation', 'email', 'Your booking PV-' + (1001 + 0) + ' is confirmed for ' + d(0) + ' at 10:00. See you there!']
-  )
-  const noShowRef = 'PV-' + (1001 + 5)
-  await dbRun(
-    'INSERT INTO notifications (owner_id, booking_id, type, channel, message_body) VALUES ($1, $2, $3, $4, $5)',
-    [ownerIdByName['Maria Santos'], bookingIdByKey['Bella:-5:09:00'], 'rebooking', 'email', 'Your slot ' + noShowRef + ' was forfeited due to late arrival. Here are available rebooking slots: ' + d(1) + ' 10:00, ' + d(1) + ' 14:00, ' + d(2) + ' 09:00.']
-  )
-
   await syncDemoData()
   console.log('Seeded:')
   console.log(`  ${SERVICES.length} services, ${BUNDLES.length} bundles, ${STAFF.length} staff, ${OWNERS.length} owners, ${PETS.length} pets, ${BOOKINGS.length} bookings, ${MEDICAL_RECORDS.length} medical records`)
@@ -537,8 +503,10 @@ async function logCounts() {
   console.log('[seed] data:', counts.map((c) => `${c.t}=${c.n}`).join(' '))
 }
 
-// demo logins
+// demo logins — the demo client account was removed with the demo data,
+// so only the admin one-click login remains.
 export const DEMO_ACCOUNTS = [
-  { label: 'Client', email: 'client@petvibe.ph', password: 'password123' },
-  { label: 'Admin/Staff', email: 'admin@petvibe.ph', password: 'password123' },
+  { label: 'Admin', email: 'admin@petvibe.ph', password: 'password123' },
+  { label: 'Staff (Vet)', email: 'vet@petvibe.ph', password: 'password123' },
+  { label: 'Staff (Groomer)', email: 'liza@petvibe.ph', password: 'password123' },
 ]

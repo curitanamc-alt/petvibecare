@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS owners (
   address      TEXT,
   account_type TEXT NOT NULL DEFAULT 'registered' CHECK (account_type IN ('registered', 'walk_in')),
   status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended')),
+  photo_url    TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -30,10 +31,11 @@ CREATE TABLE IF NOT EXISTS pets (
 CREATE TABLE IF NOT EXISTS staff (
   staff_id        SERIAL PRIMARY KEY,
   full_name       TEXT NOT NULL,
-  role            TEXT NOT NULL CHECK (role IN ('vet', 'groomer', 'admin')),
+  role            TEXT NOT NULL CHECK (role IN ('admin', 'vet', 'groomer', 'front_desk')), -- display-only job title, never gates access
   email           TEXT UNIQUE,
   password_hash   TEXT,
   specialization  TEXT,
+  photo_url       TEXT,
   active          INTEGER NOT NULL DEFAULT 1
 );
 
@@ -113,19 +115,34 @@ CREATE TABLE IF NOT EXISTS medical_records (
 
 CREATE TABLE IF NOT EXISTS notifications (
   notification_id SERIAL PRIMARY KEY,
-  owner_id        INTEGER NOT NULL REFERENCES owners(owner_id),
+  owner_id        INTEGER REFERENCES owners(owner_id),
+  staff_id        INTEGER REFERENCES staff(staff_id),
   booking_id      INTEGER REFERENCES bookings(booking_id),
-  type            TEXT NOT NULL CHECK (type IN ('confirmation', 'rebooking', 'reminder')),
+  type            TEXT NOT NULL CHECK (type IN ('confirmation', 'rebooking', 'reminder', 'reschedule', 'booking_received')),
   channel         TEXT NOT NULL DEFAULT 'email',
-  sent_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  message_body    TEXT
+  subject         TEXT,
+  message_body    TEXT,
+  read_at         TIMESTAMPTZ,
+  sent_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
-  token     TEXT PRIMARY KEY,
-  owner_id  INTEGER REFERENCES owners(owner_id) ON DELETE CASCADE,
-  staff_id  INTEGER REFERENCES staff(staff_id) ON DELETE CASCADE,
+  token      TEXT PRIMARY KEY,
+  owner_id   INTEGER REFERENCES owners(owner_id) ON DELETE CASCADE,
+  staff_id   INTEGER REFERENCES staff(staff_id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- Audit trail for sensitive admin actions (suspend, password reset, staff mgmt).
+CREATE TABLE IF NOT EXISTS admin_action_log (
+  log_id      SERIAL PRIMARY KEY,
+  staff_id    INTEGER REFERENCES staff(staff_id),
+  action      TEXT NOT NULL,
+  target_type TEXT,
+  target_id   INTEGER,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_bookings_owner   ON bookings(owner_id);

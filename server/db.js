@@ -46,3 +46,21 @@ export async function dbRun(sql, params = []) {
   const result = await pool.query(sql, params)
   return { rowCount: result.rowCount, rows: result.rows }
 }
+
+// Run fn(client) inside a single transaction — commits on success, rolls
+// everything back on error. Used for multi-statement deletes that must be
+// all-or-nothing (e.g. deleting a client account and its dependent rows).
+export async function withTransaction(fn) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await fn(client)
+    await client.query('COMMIT')
+    return result
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}

@@ -15,9 +15,16 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault()
     setError('')
+    const payload = { ...form, email: form.email.trim() }
+    // Mirrors the server check — booking emails go to this address, so a
+    // placeholder/garbage email would mean the client never hears from us.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+      setError('Please enter a valid email address.')
+      return
+    }
     setBusy(true)
     try {
-      await register(form)
+      await register(payload)
       navigate('/portal')
     } catch (err) {
       setError(err.message)

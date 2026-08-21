@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, fmtDate } from '../../lib/api.js'
 import { useAuth } from '../../lib/auth.jsx'
-import { Button, Card, EmptyState, PetPhoto, Spinner, Badge } from '../../components/ui.jsx'
+import { Button, Card, EmptyState, Spinner, Badge } from '../../components/ui.jsx'
+import ImageUpload from '../../components/ImageUpload.jsx'
 import MedicalReportPrint from '../../components/MedicalReportPrint.jsx'
 import { speciesEmoji, speciesLabel } from '../../lib/species.js'
 
@@ -21,6 +22,8 @@ export default function PetDetail() {
   const { id } = useParams()
   const { user } = useAuth()
   const [data, setData] = useState(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
 
   useEffect(() => {
     api.myPets()
@@ -32,6 +35,19 @@ export default function PetDetail() {
       .then(setData)
       .catch(() => setData(null))
   }, [id])
+
+  const savePhoto = async (photo_url) => {
+    setPhotoBusy(true)
+    setPhotoError('')
+    try {
+      await api.updatePet(pet.pet_id, { photo_url })
+      const d = await api.myPets()
+      const p = d.pets.find((x) => String(x.pet_id) === id)
+      if (p) setData((old) => (old ? { ...old, pet: p } : old))
+    } catch (e) {
+      setPhotoError(e.message)
+    } finally { setPhotoBusy(false) }
+  }
 
   const dueItems = useMemo(() => {
     if (!data) return []
@@ -56,11 +72,12 @@ export default function PetDetail() {
         Back to my pets
       </Link>
 
-      <Card className="flex items-center gap-6 p-8">
-        <PetPhoto photoUrl={pet.photo_url} size="xl" />
-        <div>
+      <Card className="flex flex-wrap items-center gap-6 p-8">
+        <ImageUpload photoUrl={pet.photo_url} onSave={savePhoto} busy={photoBusy} round={false} size="xl" />
+        <div className="min-w-0">
           <h1 className="text-2xl font-extrabold text-charcoal-900">{pet.name}</h1>
           <p className="mt-1.5 text-sm text-charcoal-500">{speciesEmoji(pet.species)} {pet.breed || speciesLabel(pet.species)} · {pet.gender} · {pet.weight_kg ? `${pet.weight_kg} kg` : 'weight n/a'}</p>
+          {photoError && <p className="mt-2 text-xs font-medium text-red-500">{photoError}</p>}
         </div>
       </Card>
 

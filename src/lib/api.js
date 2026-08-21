@@ -70,7 +70,10 @@ async function request(method, path, body, token) {
   if (tk) headers.Authorization = `Bearer ${tk}`
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 3000)
+  // Uploads (base64 photo data URLs) need more time than a 3 s round-trip,
+  // especially over a slower connection — aborting would silently fall back
+  // to mock mode and the photo would never reach the DB.
+  const timer = setTimeout(() => controller.abort(), body ? 20000 : 3000)
 
   let res
   try {
@@ -88,9 +91,10 @@ async function request(method, path, body, token) {
 
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    if (res.status >= 500) {
-      return fallbackToMock(method, path, body, tk)
-    }
+    // Only fall back to mock when the server is truly unreachable (fetch threw
+    // above). A reachable server answering with an error means the operation
+    // failed for real — silently switching to demo mode masks the cause (an
+    // oversized upload used to become a confusing mock "Not logged in").
     const e = new Error(data?.error || `Request failed (${res.status})`)
     e.status = res.status
     throw e
@@ -142,6 +146,8 @@ export const api = {
   requestReschedule: (id, data) => post(`/bookings/${id}/reschedule-request`, data),
   cancelRescheduleRequest: (id, reqId) => del(`/bookings/${id}/reschedule-request/${reqId}`),
   bookingHistory: (id) => get(`/bookings/${id}/history`),
+  myNotifications: () => get('/notifications'),
+  markNotificationsRead: () => post('/notifications/read'),
 
   // admin
   adminServices: () => get('/admin/services'),
@@ -150,26 +156,33 @@ export const api = {
   adminToggleService: (id) => patch(`/admin/services/${id}/toggle`),
   adminStats: () => get('/admin/stats'),
   adminBookings: (params = '') => get('/admin/bookings' + params),
+  staffBookings: (params = '') => get('/staff/bookings' + params),
+  staffBooking: (id) => get(`/staff/bookings/${id}`),
+  staffUpdateBooking: (id, data) => patch(`/staff/bookings/${id}`, data),
   adminBooking: (id) => get(`/admin/bookings/${id}`),
   updateBooking: (id, data) => patch(`/admin/bookings/${id}`, data),
   adminCreateBooking: (data) => post('/admin/bookings', data),
   adminPets: (params = '') => get('/admin/pets' + params),
   adminPet: (id) => get(`/admin/pets/${id}`),
+  adminUpdatePetPhoto: (id, photo_url) => patch(`/admin/pets/${id}/photo`, { photo_url }),
   adminAddRecord: (petId, data) => post(`/admin/pets/${petId}/records`, data),
   adminStaff: () => get('/admin/staff'),
   adminCreateStaff: (data) => post('/admin/staff', data),
   adminToggleStaff: (id) => patch(`/admin/staff/${id}/toggle`),
+  adminUpdateStaffPhoto: (id, photo_url) => patch(`/admin/staff/${id}/photo`, { photo_url }),
   adminSchedule: () => get('/admin/schedule'),
   adminAddSchedule: (data) => post('/admin/schedule', data),
   adminDeleteSchedule: (id) => del(`/admin/schedule/${id}`),
   adminWalkIn: (data) => post('/admin/walkin', data),
   adminAnalytics: () => get('/admin/analytics'),
   adminNotifications: () => get('/admin/notifications'),
+  adminMarkNotificationsRead: () => post('/admin/notifications/read'),
   adminOwners: (params = '') => get('/admin/owners' + params),
   adminOwner: (id) => get(`/admin/owners/${id}`),
   adminUpdateOwner: (id, data) => patch(`/admin/owners/${id}`, data),
   adminSetOwnerStatus: (id, status) => patch(`/admin/owners/${id}/status`, { status }),
   adminResetOwnerPassword: (id) => post(`/admin/owners/${id}/reset-password`),
+  adminDeleteOwner: (id) => del(`/admin/owners/${id}`),
   adminPetRecords: (id) => get(`/admin/pets/${id}/records`),
   adminUpdateRecord: (id, data) => patch(`/admin/records/${id}`, data),
   adminDeleteRecord: (id) => del(`/admin/records/${id}`),

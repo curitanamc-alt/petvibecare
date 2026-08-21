@@ -30,7 +30,7 @@ export default function PublicLayout() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                {role === 'staff' && (
+                {role === 'admin' && (
                   <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
                     Dashboard
                   </Button>

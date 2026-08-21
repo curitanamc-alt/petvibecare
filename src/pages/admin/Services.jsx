@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, fmtMoney } from '../../lib/api.js'
+import { useAuth } from '../../lib/auth.jsx'
 import { useToast } from '../../components/Toast.jsx'
 import { Button, Card, Field, Input, Modal, Select, Spinner, StatusPill, Textarea, cx } from '../../components/ui.jsx'
 import { isDogTier, speciesEmoji, tierLabel, tierSpecies } from '../../lib/species.js'
@@ -54,6 +55,8 @@ const emptyForm = { name: '', category: '', description: '', price_min: '', pric
 
 export default function Services() {
   const toast = useToast()
+  const { role } = useAuth()
+  const isAdmin = role === 'admin'
   const [services, setServices] = useState(null)
   const [tab, setTab] = useState('')
   const [category, setCategory] = useState('')
@@ -138,7 +141,7 @@ export default function Services() {
           <h1 className="text-2xl font-extrabold text-charcoal-900">Services</h1>
           <p className="mt-1.5 text-sm text-charcoal-500">Full catalog — {services.length} services across all categories.</p>
         </div>
-        <Button variant="accent" onClick={openNew}>+ Add Service</Button>
+        {isAdmin && <Button variant="accent" onClick={openNew}>+ Add Service</Button>}
       </div>
 
       {/* Filters */}
@@ -195,11 +198,10 @@ export default function Services() {
                 <th className="px-5 py-4">Duration</th>
                 <th className="px-5 py-4">Price</th>
                 <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4 text-right">Actions</th>
+                {isAdmin && <th className="px-5 py-4 text-right">Actions</th>}
               </tr>
             </thead>
-            <tbody>
-              {visible.length === 0 && <tr><td colSpan={7} className="px-5 py-14 text-center text-charcoal-400">No services match these filters.</td></tr>}
+            <tbody>                {visible.length === 0 && <tr><td colSpan={isAdmin ? 7 : 6} className="px-5 py-14 text-center text-charcoal-400">No services match these filters.</td></tr>}
               {visible.map((s) => (
                 <tr key={s.service_id} className="border-b border-sage-100 transition-colors hover:bg-sage-50/50">
                   <td className="px-5 py-4">
@@ -213,6 +215,7 @@ export default function Services() {
                   <td className="px-5 py-4">
                     {s.active ? <StatusPill tone="green">Active</StatusPill> : <StatusPill tone="gray">Inactive</StatusPill>}
                   </td>
+                  {isAdmin && (
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1.5">
                       <button
@@ -240,6 +243,7 @@ export default function Services() {
                       </button>
                     </div>
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -258,6 +262,7 @@ export default function Services() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {s.active ? <StatusPill tone="green">Active</StatusPill> : <StatusPill tone="gray">Inactive</StatusPill>}
+                  {isAdmin && (
                   <button
                     type="button"
                     title="Edit service"
@@ -268,6 +273,7 @@ export default function Services() {
                       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                     </svg>
                   </button>
+                  )}
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

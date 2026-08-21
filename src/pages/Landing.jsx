@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api.js'
+import { SPECIES } from '../lib/species.js'
 import { Button, Card, SectionHeading, Spinner } from '../components/ui.jsx'
 
 const FEATURES = [
@@ -10,6 +11,25 @@ const FEATURES = [
   { icon: '🆘', title: 'Emergency-Friendly', text: 'Walk-ins and ER cases handled immediately at the counter.' },
 ]
 
+// Species cards for the "We Welcome Your Furkids Here!" grid — derived from the
+// shared SPECIES enum (lib/species.js) so the landing page stays in sync with the
+// species pickers used in the pet forms. Each card links to the Services page's
+// species filter. Every species has a photo in /public; the emoji stays as a
+// fallback in case a photo is ever missing.
+const SPECIES_PHOTOS = {
+  dog: '/dog.jpg',
+  cat: '/cat.jpg',
+  bird: '/bird.jpg',
+  guinea_pig: '/guineapig.jpg',
+  pig: '/pig.jpg',
+  rabbit: '/rabbit.jpg',
+  rat: '/fancyrat.jpg',
+  other: '/other.jpg',
+}
+const SPECIES_CARDS = ['dog', 'cat', 'bird', 'guinea_pig', 'rabbit', 'pig', 'rat', 'other']
+  .map((value) => SPECIES.find((s) => s.value === value))
+  .map((s) => ({ ...s, photo: SPECIES_PHOTOS[s.value] || null, tagline: s.value === 'other' ? '& more' : null }))
+
 const TESTIMONIALS = [
   { name: 'Maria S.', pet: 'Bella (Shih Tzu)', text: 'Dr. Reyes is amazing with Bella. She always explains everything clearly and makes sure we understand the treatment plan. The online booking is so convenient!', rating: 5 },
   { name: 'Juan D.', pet: 'Bantay (Aspin)', text: 'Quick, professional, and affordable. They neutered my rescue dog and the recovery was smooth. Highly recommend PetVibe for any pet owner.', rating: 5 },
@@ -18,12 +38,25 @@ const TESTIMONIALS = [
 
 const ROLE_LABEL = { vet: 'Veterinarian', groomer: 'Groomer', admin: 'Clinic Team' }
 
+// Display order for the "Meet the team" grid — Elinor (director) in the middle of
+// the top row, Sophia top-left, and the rest following in their DB order. Any
+// staff member not listed here is appended at the end, so new hires still show.
+const TEAM_ORDER = [
+  'Dr. Sophia Sayaman',
+  'Dr. Elinor Romero',
+  'Dr. Antoinette Curitana',
+  'Dr. Marty Palmenco',
+  'Dr. Rainiel Pallaya',
+]
+const orderTeam = (list) =>
+  [...list].sort((a, b) => TEAM_ORDER.indexOf(a.full_name) - TEAM_ORDER.indexOf(b.full_name))
+
 export default function Landing() {
   const [team, setTeam] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.team().then(setTeam).catch(() => setTeam([])).finally(() => setLoading(false))
+    api.team().then((list) => setTeam(orderTeam(list))).catch(() => setTeam([])).finally(() => setLoading(false))
   }, [])
 
   return (
@@ -90,11 +123,10 @@ export default function Landing() {
               {/* Bella */}
               <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 <Card className="group overflow-hidden border-white/40 p-0 shadow-2xl transition-all duration-300 hover:-translate-y-1.5">
-                  <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-sky-200 via-teal-100 to-sage-200">
-                    <span className="text-6xl drop-shadow-lg transition-transform duration-300 group-hover:scale-110">🐶</span>
-                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-teal-700 shadow-sm">✓ Check-up done</span>
+                  <div className="flex items-center bg-gradient-to-r from-sky-200 via-teal-100 to-sage-200 px-4 py-2.5">
+                    <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-teal-700 shadow-sm">✓ Check-up done</span>
                   </div>
-                  <div className="bg-white p-5">
+                  <div className="bg-white p-4">
                     <p className="font-extrabold text-charcoal-900">Bella</p>
                     <p className="mt-0.5 text-xs text-charcoal-400">Shih Tzu · 5.2 kg</p>
                   </div>
@@ -104,11 +136,10 @@ export default function Landing() {
               {/* Mochi */}
               <div className="mt-14 animate-slide-up" style={{ animationDelay: '0.2s' }}>
                 <Card className="group overflow-hidden border-white/40 p-0 shadow-2xl transition-all duration-300 hover:-translate-y-1.5">
-                  <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-amber-100 via-orange-100 to-rose-100">
-                    <span className="text-6xl drop-shadow-lg transition-transform duration-300 group-hover:scale-110">🐱</span>
-                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-amber-600 shadow-sm">✓ Groomed today</span>
+                  <div className="flex items-center bg-gradient-to-r from-amber-100 via-orange-100 to-rose-100 px-4 py-2.5">
+                    <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-amber-600 shadow-sm">✓ Groomed today</span>
                   </div>
-                  <div className="bg-white p-5">
+                  <div className="bg-white p-4">
                     <p className="font-extrabold text-charcoal-900">Mochi</p>
                     <p className="mt-0.5 text-xs text-charcoal-400">Persian · 4.1 kg</p>
                   </div>
@@ -118,11 +149,10 @@ export default function Landing() {
               {/* Bantay */}
               <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
                 <Card className="group overflow-hidden border-white/40 p-0 shadow-2xl transition-all duration-300 hover:-translate-y-1.5">
-                  <div className="relative flex h-36 items-center justify-center bg-gradient-to-br from-emerald-100 via-sage-100 to-lime-100">
-                    <span className="text-6xl drop-shadow-lg transition-transform duration-300 group-hover:scale-110">🐕</span>
-                    <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-emerald-600 shadow-sm">✓ Neutered</span>
+                  <div className="flex items-center bg-gradient-to-r from-emerald-100 via-sage-100 to-lime-100 px-4 py-2.5">
+                    <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-emerald-600 shadow-sm">✓ Neutered</span>
                   </div>
-                  <div className="bg-white p-5">
+                  <div className="bg-white p-4">
                     <p className="font-extrabold text-charcoal-900">Bantay</p>
                     <p className="mt-0.5 text-xs text-charcoal-400">Aspin · 18 kg</p>
                   </div>
@@ -153,12 +183,11 @@ export default function Landing() {
           {/* ── Hero pet strip (mobile / tablet) ── */}
           <div className="flex gap-3 overflow-x-auto pb-1 lg:col-span-2 lg:hidden">
             {[
-              { emoji: '🐶', name: 'Bella', sub: 'Shih Tzu' },
-              { emoji: '🐱', name: 'Mochi', sub: 'Persian' },
-              { emoji: '🐕', name: 'Bantay', sub: 'Aspin' },
+              { name: 'Bella', sub: 'Shih Tzu' },
+              { name: 'Mochi', sub: 'Persian' },
+              { name: 'Bantay', sub: 'Aspin' },
             ].map((p) => (
               <div key={p.name} className="flex min-w-[8.5rem] items-center gap-3 rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20 text-2xl">{p.emoji}</span>
                 <div>
                   <p className="text-sm font-bold text-white">{p.name}</p>
                   <p className="text-[10px] text-teal-100/70">{p.sub}</p>
@@ -172,6 +201,41 @@ export default function Landing() {
                 <p className="text-[10px] text-amber-100/80">Walk-ins welcome</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── We Welcome Your Furkids Here ── */}
+      <section className="bg-sage-50/80 py-28">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <SectionHeading
+            title="We Welcome Your Furkids Here!"
+            subtitle="Your pets deserve the best care, comfort, and love. At PetVibe Care, we're here to keep your furkids happy, healthy, and well cared for every step of the way. 💙🐾🐰"
+          />
+          <div className="mt-14 grid grid-cols-2 gap-5 sm:gap-6 md:grid-cols-4">
+            {SPECIES_CARDS.map((sp) => (
+              <Link
+                key={sp.value}
+                to={`/services?species=${sp.value}`}
+                className="group relative block overflow-hidden rounded-2xl bg-gradient-to-br from-teal-700 to-teal-800 shadow-card ring-1 ring-inset ring-white/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover"
+              >
+                <div className="relative aspect-[4/5]">
+                  {sp.photo ? (
+                    <img src={sp.photo} alt={sp.label} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                  ) : (
+                    <span className="absolute inset-x-0 -bottom-7 z-0 grid place-items-center text-8xl leading-none drop-shadow-lg transition-transform duration-300 group-hover:scale-110">
+                      {sp.emoji}
+                    </span>
+                  )}
+                  {/* soft top overlay keeps the label legible above the photo */}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-teal-900/60 via-transparent to-transparent" />
+                  <span className="absolute left-5 top-5 z-10">
+                    <span className="block text-sm font-extrabold uppercase tracking-wider text-white drop-shadow-sm">{sp.label}</span>
+                    {sp.tagline && <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-teal-100/80">{sp.tagline}</span>}
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
@@ -238,18 +302,25 @@ export default function Landing() {
           title="The people behind the paws"
           subtitle="Veterinarians and groomers who treat your pet like family."
         />
-        <div className="mt-14 grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-14 flex flex-wrap justify-center gap-7">
           {loading ? (
             <Spinner />
           ) : (
             team.map((t) => (
-              <Card key={t.staff_id} className="p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
-                <div className="mx-auto grid h-18 w-18 place-items-center rounded-2xl bg-sage-100 text-2xl" style={{ height: '4.5rem', width: '4.5rem' }}>
-                  {t.role === 'groomer' ? '✂️' : '🩺'}
+              <Card
+                key={t.staff_id}
+                className="flex w-full max-w-sm flex-col items-center p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover sm:max-w-none sm:w-[calc(50%-0.875rem)] lg:w-[calc(33.333%-1.1667rem)]"
+              >
+                <div className="grid h-[4.5rem] w-[4.5rem] place-items-center overflow-hidden rounded-2xl bg-sage-100 text-2xl ring-1 ring-inset ring-sage-200">
+                  {t.photo_url ? (
+                    <img src={t.photo_url} alt={t.full_name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-teal-300">{t.role === 'groomer' ? '✂️' : '🩺'}</span>
+                  )}
                 </div>
                 <h3 className="mt-5 font-bold text-charcoal-900">{t.full_name}</h3>
-                <p className="mt-1.5 text-xs font-bold uppercase tracking-wider text-amber-500">{ROLE_LABEL[t.role]}</p>
-                {t.specialization && <p className="mt-2.5 text-sm text-charcoal-500">{t.specialization}</p>}
+                <p className="mt-1.5 text-xs font-bold uppercase tracking-wider text-amber-500">{ROLE_LABEL[t.role] || t.role}</p>
+                <p className="mt-2.5 min-h-[1.25rem] text-sm leading-5 text-charcoal-500">{t.specialization || ''}</p>
               </Card>
             ))
           )}

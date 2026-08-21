@@ -26,14 +26,40 @@ The Vite dev server proxies `/api` → `localhost:3001`. The SQLite database liv
 
 | Role | Email | Password |
 |---|---|---|
-| Client | `client@petvibe.ph` | `password123` |
-| Admin / Staff | `admin@petvibe.ph` | `password123` |
+| Admin | `admin@petvibe.ph` | `password123` |
+| Staff (Vet) | `vet@petvibe.ph` | `password123` |
+| Staff (Groomer) | `liza@petvibe.ph` | `password123` |
 
 Both are one-click fillable on the login page.
 
 ### Demo mode (no backend needed)
 
 If the API server isn't running, the frontend automatically switches to a built-in mock (same data model, in-browser). You can also force it with `?mock=1` on any URL, or `VITE_API_MODE=mock`.
+
+## Email notifications (Gmail)
+
+Booking emails (confirmation, reschedule, rebooking, staff alerts) are sent through **Gmail SMTP via Nodemailer**. Until Gmail is configured the app stays in *simulated* mode — the notification row is still recorded in the app (client portal / admin inbox) and the email is logged to the server console, but nothing is actually sent.
+
+Add these to your `.env` to turn on real delivery:
+
+```
+GMAIL_USER=petvibe.clinic@gmail.com          # the Gmail address that sends
+GMAIL_APP_PASSWORD=abcd efgh ijkl mnop        # Google app password (spaces optional)
+EMAIL_FROM_NAME=PetVibe Care                  # optional: display name in the inbox
+EMAIL_TEST_TO=you@gmail.com                   # optional: redirect ALL emails here (dev)
+```
+
+To get an app password:
+
+1. Turn on **2-Step Verification** for the Gmail account: https://myaccount.google.com/security
+2. Create an app password: https://myaccount.google.com/apppasswords (choose *Mail* → *Other* → name it `petvibe`)
+3. Paste the 16-character password into `GMAIL_APP_PASSWORD` and restart the server.
+
+Notes:
+
+- The sending Gmail must have SMTP enabled; app passwords don't work with plain account passwords.
+- Staff alerts only reach staff members who have a real email address in the `staff` table (seed data uses placeholders like `vet@petvibe.ph` — update them in the admin Staff page or DB).
+- Free Gmail accounts are limited to ~500 messages/day; Workspace accounts get ~2,000. For higher volume, swap the transport in `server/mailer.js` for a dedicated provider (Resend, SendGrid, SES) — `sendEmail()` / `notifyStaff()` in `server/index.js` don't change.
 
 ## What's built
 
@@ -49,7 +75,7 @@ If the API server isn't running, the frontend automatically switches to a built-
 
 - Only registered clients can book online; `Owner.account_type = walk_in` covers counter-created profiles (ERD decision).
 - `Service.client_bookable` gates booking both in the UI (hidden) and in the API (403).
-- Late arrival → admin marks `no_show` → automatic rebooking email (simulated notification row + console log).
+- Late arrival → admin marks `no_show` → automatic rebooking email (notification row + Gmail send when configured).
 - Medical records are write-only for staff, always tied to a booking or visit.
 - Slot conflicts return 409; past dates rejected.
 
@@ -74,7 +100,7 @@ scripts/
 
 ## Swapping in your real database
 
-The schema in `server/schema.sql` mirrors the ERD and ports to PostgreSQL/MySQL with minor syntax changes (drop `STRICT`/`CHECK` syntax you don't want, swap `INTEGER PRIMARY KEY AUTOINCREMENT` for `SERIAL PRIMARY KEY`). The Express routes in `server/index.js` use prepared statements via `server/db.js` — replace that one file with a `pg`/`mysql2` client and the rest of the API works unchanged. Email notifications are simulated (notification rows + console logs); wire them to your email service in `sendEmail()` inside `server/index.js`.
+The schema in `server/schema.sql` mirrors the ERD and ports to PostgreSQL/MySQL with minor syntax changes (drop `STRICT`/`CHECK` syntax you don't want, swap `INTEGER PRIMARY KEY AUTOINCREMENT` for `SERIAL PRIMARY KEY`). The Express routes in `server/index.js` use prepared statements via `server/db.js` — replace that one file with a `pg`/`mysql2` client and the rest of the API works unchanged. Email sending lives in `server/mailer.js` (Gmail SMTP by default, simulated until configured — see *Email notifications (Gmail)* above).
 
 ## Scripts
 

@@ -26,8 +26,17 @@ import Clients from './pages/admin/Clients.jsx'
 import ClientDetail from './pages/admin/ClientDetail.jsx'
 import Reports from './pages/admin/Reports.jsx'
 import Schedule from './pages/admin/Schedule.jsx'
+import Staff from './pages/admin/Staff.jsx'
 import Analytics from './pages/admin/Analytics.jsx'
 import WalkIn from './pages/admin/WalkIn.jsx'
+import StaffDashboard from './pages/admin/StaffDashboard.jsx'
+import StaffAppointments from './pages/admin/StaffAppointments.jsx'
+
+// Conditionally render admin or staff views based on role
+function AdminOrStaff({ admin, staff }) {
+  const { role } = useAuth()
+  return role === 'staff' ? staff : admin
+}
 
 function RequireClient() {
   const { user, role, ready } = useAuth()
@@ -36,10 +45,24 @@ function RequireClient() {
   return <Outlet />
 }
 
+function RequireAdmin() {
+  const { user, role, ready } = useAuth()
+  if (!ready) return <div className="py-20"><Spinner /></div>
+  if (!user || role !== 'admin') return <Navigate to="/login?next=/admin" replace />
+  return <Outlet />
+}
+
 function RequireStaff() {
   const { user, role, ready } = useAuth()
   if (!ready) return <div className="py-20"><Spinner /></div>
-  if (!user || role !== 'staff') return <Navigate to="/login?next=/admin" replace />
+  if (!user || (role !== 'admin' && role !== 'staff')) return <Navigate to="/login?next=/admin" replace />
+  return <Outlet />
+}
+
+// Wraps admin-only pages: staff users see a redirect to the dashboard.
+function AdminOnly() {
+  const { role } = useAuth()
+  if (role === 'staff') return <Navigate to="/admin" replace />
   return <Outlet />
 }
 
@@ -66,19 +89,24 @@ export default function App() {
         </Route>
       </Route>
 
+      {/* Staff + Admin routes — RequireStaff allows both roles */}
       <Route path="/admin" element={<RequireStaff />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<PageTransition><AdminHome /></PageTransition>} />
-          <Route path="appointments" element={<PageTransition><Appointments /></PageTransition>} />
-          <Route path="services" element={<PageTransition><AdminServices /></PageTransition>} />
+          <Route index element={<PageTransition><AdminOrStaff admin={<AdminHome />} staff={<StaffDashboard />} /></PageTransition>} />
+          <Route path="appointments" element={<PageTransition><AdminOrStaff admin={<Appointments />} staff={<StaffAppointments />} /></PageTransition>} />
           <Route path="pets" element={<PageTransition><AdminPets /></PageTransition>} />
           <Route path="pets/:id" element={<PageTransition><AdminPetDetail /></PageTransition>} />
-          <Route path="clients" element={<PageTransition><Clients /></PageTransition>} />
-          <Route path="clients/:id" element={<PageTransition><ClientDetail /></PageTransition>} />
-          <Route path="reports" element={<PageTransition><Reports /></PageTransition>} />
           <Route path="schedule" element={<PageTransition><Schedule /></PageTransition>} />
-          <Route path="analytics" element={<PageTransition><Analytics /></PageTransition>} />
-          <Route path="walkin" element={<PageTransition><WalkIn /></PageTransition>} />
+          <Route path="services" element={<PageTransition><AdminServices /></PageTransition>} />
+          {/* Admin-only pages wrapped with AdminOnly */}
+          <Route element={<AdminOnly />}>
+            <Route path="clients" element={<PageTransition><Clients /></PageTransition>} />
+            <Route path="clients/:id" element={<PageTransition><ClientDetail /></PageTransition>} />
+            <Route path="reports" element={<PageTransition><Reports /></PageTransition>} />
+            <Route path="staff" element={<PageTransition><Staff /></PageTransition>} />
+            <Route path="analytics" element={<PageTransition><Analytics /></PageTransition>} />
+            <Route path="walkin" element={<PageTransition><WalkIn /></PageTransition>} />
+          </Route>
         </Route>
       </Route>
 

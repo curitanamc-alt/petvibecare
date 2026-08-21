@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth.jsx'
-import { api } from '../lib/api.js'
 import { Button, Card, Field, Input, Logo } from '../components/ui.jsx'
 
 export default function Login() {
@@ -11,13 +10,8 @@ export default function Login() {
   const next = params.get('next') || ''
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [demos, setDemos] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    api.demoAccounts().then(setDemos).catch(() => {})
-  }, [])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -25,7 +19,7 @@ export default function Login() {
     setBusy(true)
     try {
       const data = await login(email, password)
-      const dest = next || (data.role === 'staff' ? '/admin' : '/portal')
+      const dest = next || (data.role === 'admin' || data.role === 'staff' ? '/admin' : '/portal')
       navigate(dest)
     } catch (err) {
       setError(err.message)
@@ -64,24 +58,6 @@ export default function Login() {
         </p>
       </Card>
 
-      {demos.length > 0 && (
-        <div className="mt-8 rounded-2xl border-2 border-dashed border-sage-200 p-6">
-          <p className="text-xs font-bold uppercase tracking-wider text-charcoal-400">Demo accounts</p>
-          <div className="mt-4 space-y-2.5">
-            {demos.map((d) => (
-              <button
-                key={d.label}
-                type="button"
-                onClick={() => { setEmail(d.email); setPassword(d.password) }}
-                className="flex w-full items-center justify-between rounded-xl bg-sage-50 px-5 py-3.5 text-left text-sm transition-colors hover:bg-sage-100"
-              >
-                <span className="font-semibold text-teal-700">{d.label}</span>
-                <span className="text-xs text-charcoal-400">{d.email} · {d.password}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

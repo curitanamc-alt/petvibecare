@@ -38,10 +38,12 @@ export default function Analytics() {
     return { total, weekTrend, revenue, noShow: pct(sb.no_show || 0, statusTotal), rebook: pct(sb.rebooked || 0, statusTotal) }
   }, [data])
 
-  // weekly chart: last 14 days colored by weekday
+  // weekly chart: this week's appointments (most recent 7 days), colored by
+  // weekday — the API still returns 14 days so the KPI trend stays comparable,
+  // but the chart itself is a clean one-week view.
   const weekly = useMemo(() => {
     if (!data) return []
-    return (data.bookingsByDay || []).map((d) => {
+    return (data.bookingsByDay || []).slice(-7).map((d) => {
       const wd = new Date(d.date + 'T00:00:00').getDay()
       return { ...d, wd }
     })
@@ -98,21 +100,27 @@ export default function Analytics() {
       </div>
 
       <div className="grid gap-7 lg:grid-cols-2">
-        {/* ── Weekly chart ── */}
+        {/* ── Appointments chart (horizontal bars) ── */}
         <Card className="p-7">
-          <h2 className="font-bold text-charcoal-900">Appointments — last 14 days</h2>
-          <div className="mt-6 flex h-52 items-end gap-1.5">
-            {weekly.map((d) => (
-              <div key={d.date} className="group relative flex flex-1 flex-col items-center justify-end">
-                <span className="mb-1 text-[10px] font-bold text-charcoal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100">{d.count}</span>
-                <div
-                  className={`w-full rounded-t-lg ${WEEKDAY_COLOR[d.wd]} transition-opacity duration-200 group-hover:opacity-80`}
-                  style={{ height: `${Math.max((d.count / maxDay) * 100, d.count ? 8 : 2)}%` }}
-                />
-              </div>
-            ))}
+          <h2 className="font-bold text-charcoal-900">Appointments — last 7 days</h2>
+          <div className="mt-6 space-y-2">
+            {weekly.map((d) => {
+              const label = new Date(d.date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+              return (
+                <div key={d.date} className="group flex items-center gap-3">
+                  <span className="w-14 shrink-0 text-right text-xs font-semibold text-charcoal-400">{label}</span>
+                  <div className="relative h-5 flex-1 rounded-full bg-sage-100">
+                    <div
+                      className={`h-full rounded-full ${WEEKDAY_COLOR[d.wd]} transition-all duration-300 group-hover:opacity-80`}
+                      style={{ width: `${Math.max((d.count / maxDay) * 100, d.count ? 8 : 2)}%` }}
+                    />
+                  </div>
+                  <span className="w-6 shrink-0 text-xs font-bold text-charcoal-900">{d.count}</span>
+                </div>
+              )
+            })}
           </div>
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-sage-100 pt-4">
+          <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-sage-100 pt-4">
             {WEEKDAY_LABEL.map((l, i) => (
               <span key={l} className="inline-flex items-center gap-1.5 text-xs text-charcoal-500">
                 <span className={`h-2.5 w-2.5 rounded ${WEEKDAY_COLOR[i]}`} />

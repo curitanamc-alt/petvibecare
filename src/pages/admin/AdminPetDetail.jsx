@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, fmtDate } from '../../lib/api.js'
-import { Badge, Button, Card, EmptyState, Field, Input, Modal, PetPhoto, Select, Spinner, StatusBadge, StatusPill } from '../../components/ui.jsx'
+import { useAuth } from '../../lib/auth.jsx'
+import { Badge, Button, Card, EmptyState, Field, Input, Modal, Select, Spinner, StatusBadge, StatusPill } from '../../components/ui.jsx'
+import ImageUpload from '../../components/ImageUpload.jsx'
 import MedicalReportPrint from '../../components/MedicalReportPrint.jsx'
 import { speciesLabel } from '../../lib/species.js'
 
@@ -39,11 +41,15 @@ const dueTone = (due) => {
 
 export default function AdminPetDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const { role } = useAuth()
+  const isAdmin = role === 'admin'
   const [data, setData] = useState(null)
-  const [form, setForm] = useState(emptyForm())
   const [editRec, setEditRec] = useState(null) // medical record being edited
   const [editForm, setEditForm] = useState(emptyForm())
   const [busy, setBusy] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
 
   const load = () => api.adminPet(id).then(setData).catch(() => setData(null))
   // oxlint-disable-next-line react-hooks/exhaustive-deps
@@ -59,20 +65,6 @@ export default function AdminPetDetail() {
   if (!data) return <Spinner label="Loading pet…" />
 
   const { pet, records, bookings } = data
-
-  const addRecord = async () => {
-    if (!form.title && !form.treatment_notes) return
-    setBusy(true)
-    try {
-      await api.adminAddRecord(pet.pet_id, {
-        ...form,
-        weight_at_visit: form.weight_at_visit ? Number(form.weight_at_visit) : null,
-        next_due_date: form.next_due_date || null,
-      })
-      setForm(emptyForm())
-      load()
-    } finally { setBusy(false) }
-  }
 
   const openEdit = (r) => {
     setEditForm({
@@ -110,6 +102,17 @@ export default function AdminPetDetail() {
     load()
   }
 
+  const savePhoto = async (photo_url) => {
+    setPhotoBusy(true)
+    setPhotoError('')
+    try {
+      await api.adminUpdatePetPhoto(pet.pet_id, photo_url)
+      load()
+    } catch (e) {
+      setPhotoError(e.message)
+    } finally { setPhotoBusy(false) }
+  }
+
   return (
     <div className="space-y-7">
       <Link to="/admin/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 transition-colors hover:text-teal-700 hover:underline">
@@ -122,7 +125,13 @@ export default function AdminPetDetail() {
         <div className="space-y-7">
           <Card className="p-7">
             <div className="flex items-center gap-5">
-              <PetPhoto photoUrl={pet.photo_url} size="xl" />
+              {isAdmin ? (
+                <ImageUpload photoUrl={pet.photo_url} onSave={savePhoto} busy={photoBusy} round={false} size="xl" />
+              ) : (
+                <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full bg-sage-100 text-3xl">
+                  {pet.species === 'dog' ? '🐶' : pet.species === 'cat' ? '🐱' : '🐾'}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h1 className="text-2xl font-extrabold text-charcoal-900">{pet.name}</h1>
@@ -133,6 +142,7 @@ export default function AdminPetDetail() {
                 <p className="mt-1 text-sm text-charcoal-500">{speciesLabel(pet.species)}{pet.breed ? ` · ${pet.breed}` : ''}</p>
               </div>
             </div>
+            {photoError && <p className="mt-3 text-xs font-medium text-red-500">{photoError}</p>}
 
             <div className="mt-6 grid grid-cols-2 gap-4">
               {[
@@ -184,7 +194,7 @@ export default function AdminPetDetail() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <StatusPill tone="green">{bookings.length} visits</StatusPill>
-                <Button variant="outline" size="sm" onClick={() => window.print()}>🖨️ Print / PDF</Button>
+                {isAdmin && <Button variant="outline" size="sm" onClick={() => window.print()}>🖨️ Print / PDF</Button>}
               </div>
             </div>
 
@@ -208,6 +218,7 @@ export default function AdminPetDetail() {
                           </div>
                           <p className="mt-1 text-xs text-charcoal-400">{fmtDate(r.visit_date)} · {r.staff_name || 'Staff'}{r.reference_code ? ` · ${r.reference_code}` : ''}</p>
                         </div>
+                        {isAdmin && (
                         <div className="flex items-center gap-1.5">
                           <button type="button" onClick={() => openEdit(r)} title="Edit record" className="rounded-lg p-2 text-charcoal-400 transition-colors hover:bg-sage-100 hover:text-teal-700">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
@@ -216,6 +227,7 @@ export default function AdminPetDetail() {
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
                           </button>
                         </div>
+                        )}
                       </div>
                       {r.diagnosis && r.title !== r.diagnosis && <p className="mt-2 text-sm font-medium text-charcoal-700">{r.diagnosis}</p>}
                       {r.treatment_notes && <p className="mt-1 text-sm text-charcoal-600 leading-relaxed">{r.treatment_notes}</p>}
@@ -231,23 +243,21 @@ export default function AdminPetDetail() {
             )}
           </Card>
 
+          {isAdmin && (
           <Card className="p-7">
-            <h2 className="font-bold text-charcoal-900">Add medical record</h2>
-            <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
-              <Field label="Record date"><Input type="date" value={form.visit_date} onChange={(e) => setForm({ ...form, visit_date: e.target.value })} /></Field>
-              <Field label="Type">
-                <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                  {RECORD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </Select>
-              </Field>
-              <div className="sm:col-span-2"><Field label="Title"><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. 5-in-1 booster" /></Field></div>
-              <div className="sm:col-span-2"><Field label="Notes"><Input value={form.treatment_notes} onChange={(e) => setForm({ ...form, treatment_notes: e.target.value })} placeholder="Findings, treatment given…" /></Field></div>
-              <Field label="Vaccinations given"><Input value={form.vaccinations_given} onChange={(e) => setForm({ ...form, vaccinations_given: e.target.value })} /></Field>
-              <Field label="Weight (kg)"><Input type="number" step="0.1" value={form.weight_at_visit} onChange={(e) => setForm({ ...form, weight_at_visit: e.target.value })} /></Field>
-              <div className="sm:col-span-2"><Field label="Next due date" hint="Set for vaccines or follow-ups so due dates get flagged."><Input type="date" value={form.next_due_date} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} /></Field></div>
-            </div>
-            <Button className="mt-5" onClick={addRecord} disabled={busy || (!form.title && !form.treatment_notes)}>Save record</Button>
+            <h2 className="font-bold text-charcoal-900">Log a visit</h2>
+            <p className="mt-1.5 text-sm text-charcoal-500 leading-relaxed">
+              Medical records are attached to appointments. Book {pet.name} for its next visit, then log the visit from the appointment screen.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-5"
+              onClick={() => navigate(`/admin/appointments?new=1&pet=${pet.pet_id}`)}
+            >
+              📅 Book this pet
+            </Button>
           </Card>
+          )}
 
           {/* ── Visit history ── */}
           <Card className="p-7">

@@ -281,8 +281,12 @@ export function SectionCard({ title, subtitle, action, className = '', bodyClass
 }
 
 /* ─── Avatar ─── */
-export function Avatar({ name = 'S', size = 'md', className = '' }) {
+// Renders the person's photo when they have one, otherwise their initials.
+export function Avatar({ name = 'S', size = 'md', className = '', photoUrl }) {
   const sizes = { sm: 'h-8 w-8 text-xs', md: 'h-9 w-9 text-sm', lg: 'h-12 w-12 text-lg', xl: 'h-16 w-16 text-2xl' }
+  if (photoUrl) {
+    return <img src={photoUrl} alt={name} className={cx('shrink-0 rounded-full object-cover', sizes[size], className)} />
+  }
   return (
     <span className={cx('grid shrink-0 place-items-center rounded-full bg-teal-600 font-bold text-white', sizes[size], className)}>
       {String(name || 'S').charAt(0).toUpperCase()}

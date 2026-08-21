@@ -1,9 +1,11 @@
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../lib/auth.jsx'
+import { api } from '../../lib/api.js'
 import { Logo, Avatar, StatusPill, cx } from '../../components/ui.jsx'
+import NotificationsBell from '../../components/NotificationsBell.jsx'
 
-const NAV = [
+const NAV_ADMIN = [
   { to: '/admin', end: true, label: 'Dashboard', icon: '🏠' },
   { to: '/admin/appointments', label: 'Appointments', icon: '📅' },
   { to: '/admin/pets', label: 'Customer Pets', icon: '🐾' },
@@ -11,17 +13,31 @@ const NAV = [
   { to: '/admin/services', label: 'Services', icon: '🩺' },
   { to: '/admin/reports', label: 'Reports', icon: '📄' },
   { to: '/admin/schedule', label: 'Staff Schedule', icon: '🕐' },
+  { to: '/admin/staff', label: 'Team', icon: '🧑‍⚕️' },
   { to: '/admin/analytics', label: 'Analytics', icon: '📊' },
   { to: '/admin/walkin', label: 'Walk-in / ER', icon: '🚪' },
 ]
 
-// Frequent destinations surfaced on the mobile bottom tab bar; the rest of the
-// nav stays in the slide-in drawer (opened via the “More” tab).
-const BOTTOM_NAV = [
+const NAV_STAFF = [
+  { to: '/admin', end: true, label: 'Dashboard', icon: '🏠' },
+  { to: '/admin/appointments', label: 'My Appointments', icon: '📅' },
+  { to: '/admin/pets', label: 'Customer Pets', icon: '🐾' },
+  { to: '/admin/services', label: 'Services', icon: '🩺' },
+  { to: '/admin/schedule', label: 'Staff Schedule', icon: '🕐' },
+]
+
+const BOTTOM_NAV_ADMIN = [
   { to: '/admin', end: true, label: 'Dashboard', icon: '🏠' },
   { to: '/admin/appointments', label: 'Appointments', icon: '📅' },
   { to: '/admin/pets', label: 'Pets', icon: '🐾' },
   { to: '/admin/clients', label: 'Clients', icon: '👥' },
+]
+
+const BOTTOM_NAV_STAFF = [
+  { to: '/admin', end: true, label: 'Dashboard', icon: '🏠' },
+  { to: '/admin/appointments', label: 'Appointments', icon: '📅' },
+  { to: '/admin/pets', label: 'Pets', icon: '🐾' },
+  { to: '/admin/schedule', label: 'Schedule', icon: '🕐' },
 ]
 
 const item = ({ isActive }) =>
@@ -33,10 +49,13 @@ const item = ({ isActive }) =>
   )
 
 export default function AdminLayout() {
-  const { user, logout } = useAuth()
+  const { user, role, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const isAdmin = role === 'admin'
+  const NAV = isAdmin ? NAV_ADMIN : NAV_STAFF
+  const BOTTOM_NAV = isAdmin ? BOTTOM_NAV_ADMIN : BOTTOM_NAV_STAFF
 
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') setSidebarOpen(false) }
@@ -62,14 +81,14 @@ export default function AdminLayout() {
       )}
 
       <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gradient-to-b from-teal-700 via-teal-800 to-teal-900 max-lg:hidden">
-        <SidebarContent user={user} logout={logout} navigate={navigate} />
+        <SidebarContent user={user} logout={logout} navigate={navigate} nav={NAV} />
       </aside>
 
       <aside
         className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-gradient-to-b from-teal-700 via-teal-800 to-teal-900 transition-transform duration-300 ease-out lg:hidden"
         style={{ transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)' }}
       >
-        <SidebarContent user={user} logout={logout} navigate={navigate} onNav={() => setSidebarOpen(false)} />
+        <SidebarContent user={user} logout={logout} navigate={navigate} onNav={() => setSidebarOpen(false)} nav={NAV} />
       </aside>
 
       <div className="lg:pl-64">
@@ -105,18 +124,13 @@ export default function AdminLayout() {
               <span className="hidden text-sm text-charcoal-500 sm:block">
                 Welcome, <span className="font-semibold text-charcoal-900">{user?.full_name?.replace('Dr. ', '').split(' ')[0] || 'Staff'}</span>
               </span>
-              <StatusPill tone={user?.role === 'admin' ? 'amber' : 'teal'}>{user?.role || 'Staff'}</StatusPill>
-              <button
-                className="relative rounded-full border border-sage-200 bg-white p-2 text-charcoal-500 transition-colors hover:bg-sage-50"
-                aria-label="Notifications"
-                title="Notifications"
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" />
-              </button>
-              <Avatar name={user?.full_name} size="md" />
+              <StatusPill tone={isAdmin ? 'amber' : 'teal'}>{isAdmin ? 'Admin' : 'Staff'}</StatusPill>
+              <NotificationsBell
+                fetchFn={api.adminNotifications}
+                markReadFn={api.adminMarkNotificationsRead}
+                emptyText="No notifications for you yet"
+              />
+              <Avatar name={user?.full_name} size="md" photoUrl={user?.photo_url} />
             </div>
           </div>
         </header>
@@ -160,7 +174,7 @@ export default function AdminLayout() {
   )
 }
 
-function SidebarContent({ user, logout, navigate, onNav }) {
+function SidebarContent({ user, logout, navigate, onNav, nav }) {
   return (
     <>
       <div className="px-6 pb-6 pt-7">
@@ -171,7 +185,7 @@ function SidebarContent({ user, logout, navigate, onNav }) {
       </div>
 
       <nav className="flex-1 space-y-1.5 px-3.5">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={item} onClick={onNav}>
             <span className="text-base">{n.icon}</span>
             {n.label}
@@ -181,7 +195,7 @@ function SidebarContent({ user, logout, navigate, onNav }) {
 
       <div className="px-3.5 pb-5 pt-4">
         <div className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 px-3.5 py-3">
-          <Avatar name={user?.full_name} size="sm" className="bg-amber-500" />
+          <Avatar name={user?.full_name} size="sm" className="bg-amber-500" photoUrl={user?.photo_url} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{user?.full_name}</p>
             <p className="truncate text-xs text-teal-200/60">{user?.specialization || 'Staff'}</p>

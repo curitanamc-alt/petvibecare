@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, fmtDate } from '../../lib/api.js'
 import { Badge, Button, Card, EmptyState, Field, Input, Modal, PetPhoto, Spinner, StatusBadge, StatusPill } from '../../components/ui.jsx'
 import { speciesEmoji, speciesLabel } from '../../lib/species.js'
 
 export default function ClientDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -13,6 +14,9 @@ export default function ClientDetail() {
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState('')
   const [tempPassword, setTempPassword] = useState(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const load = () => {
     setError(null)
@@ -64,6 +68,18 @@ export default function ClientDetail() {
     setTempPassword(r.temp_password)
   }
 
+  const confirmDelete = async () => {
+    setDeleteBusy(true)
+    setDeleteError('')
+    try {
+      await api.adminDeleteOwner(owner.owner_id)
+      navigate('/admin/clients')
+    } catch (e) {
+      setDeleteError(e.message)
+      setDeleteBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-7">
       <Link to="/admin/clients" className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 transition-colors hover:text-teal-700 hover:underline">
@@ -101,6 +117,14 @@ export default function ClientDetail() {
             {owner.account_type !== 'walk_in' && (
               <Button variant="outline" size="sm" onClick={resetPassword}>Reset password</Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:bg-red-50"
+              onClick={() => { setDeleteError(''); setDeleteOpen(true) }}
+            >
+              Delete account
+            </Button>
           </div>
         </div>
 
@@ -200,6 +224,32 @@ export default function ClientDetail() {
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={saveEdit} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal open={deleteOpen} onClose={() => !deleteBusy && setDeleteOpen(false)} title="Delete client account">
+        <div className="space-y-5">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+            <p className="text-sm leading-relaxed text-red-700">
+              This permanently deletes <b>{owner.full_name}</b> and everything attached to the account:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700/90">
+              <li>{pets.length} pet{pets.length === 1 ? '' : 's'} and their medical records</li>
+              <li>{bookings.length} booking{bookings.length === 1 ? '' : 's'} and their history</li>
+              <li>Notifications and login sessions</li>
+            </ul>
+            <p className="mt-3 text-sm font-semibold text-red-700">This cannot be undone.</p>
+          </div>
+          {deleteError && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-600">{deleteError}</p>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleteBusy}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={deleteBusy}>
+              {deleteBusy ? 'Deleting…' : 'Delete account'}
+            </Button>
           </div>
         </div>
       </Modal>

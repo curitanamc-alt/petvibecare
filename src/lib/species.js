@@ -29,6 +29,17 @@ export const SPECIES_GROUPS = [
 
 // Service weight_tier values → which species the service suits.
 const DOG_TIERS = ['small', 'medium', 'large', 'xl', 'xxl', 'xxxl']
+// Display labels for dog size tiers — weight-based pricing (grooming) is
+// priced per size, so the client-facing pages show the exact tier, e.g.
+// "Small dog" instead of a generic "Dog".
+const DOG_TIER_LABELS = {
+  small: 'Small dog',
+  medium: 'Medium dog',
+  large: 'Large dog',
+  xl: 'XL dog',
+  xxl: 'XXL dog',
+  xxxl: 'XXXL dog',
+}
 export const tierSpecies = (tier) => {
   if (!tier || tier === 'any') return 'any'
   if (DOG_TIERS.includes(tier)) return 'dog'
@@ -36,7 +47,7 @@ export const tierSpecies = (tier) => {
 }
 export const tierLabel = (tier) => {
   if (!tier || tier === 'any') return 'Any pet'
-  if (DOG_TIERS.includes(tier)) return 'Dog'
+  if (DOG_TIER_LABELS[tier]) return DOG_TIER_LABELS[tier]
   return speciesLabel(tier)
 }
 export const isDogTier = (tier) => tier === 'dog' || DOG_TIERS.includes(tier)

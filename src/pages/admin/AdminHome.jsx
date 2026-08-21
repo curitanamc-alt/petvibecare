@@ -104,13 +104,17 @@ export default function AdminHome() {
             <div className="rounded-xl bg-sage-50 p-10 text-center text-sm text-charcoal-400">No bookings yet.</div>
           ) : (
             <>
+              {/* h-52 = 208px; each month column is h-full so the bars (pixel heights)
+                  resolve against a real height instead of collapsing to 0 */}
               <div className="mt-2 flex h-52 items-end gap-6">
                 {chart.months.map((m) => {
                   const total = chart.totals[chart.months.indexOf(m)]
+                  // tallest bar ≈ 140px; reserve the rest for the count + month labels
+                  const barPx = Math.max(Math.round((total / chart.max) * 140), 6)
                   return (
-                    <div key={m} className="flex flex-1 flex-col items-center gap-2">
+                    <div key={m} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
                       <span className="text-sm font-bold text-charcoal-700">{total}</span>
-                      <div className="flex w-full max-w-[9rem] flex-col justify-end gap-1" style={{ height: `${Math.max((total / chart.max) * 100, 6)}%` }}>
+                      <div className="flex w-full max-w-[9rem] flex-col justify-end gap-1" style={{ height: `${barPx}px` }}>
                         {chart.ordered.map((c) => {
                           const n = chart.byMonth[m][c] || 0
                           if (!n) return null

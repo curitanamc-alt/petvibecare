@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtDate } from '../../lib/api.js'
+import { useAuth } from '../../lib/auth.jsx'
 import { Badge, Button, Card, Field, Input, Modal, PetPhoto, Select, Spinner, cx } from '../../components/ui.jsx'
 import { SPECIES, SPECIES_GROUPS, speciesColor, speciesEmoji, speciesLabel } from '../../lib/species.js'
 
@@ -9,6 +10,8 @@ const emptyForm = { full_name: '', phone: '', address: '', pet_name: '', species
 const SPECIES_TABS = [{ key: '', label: 'All pets' }, ...SPECIES_GROUPS]
 
 export default function AdminPets() {
+  const { role } = useAuth()
+  const isAdmin = role === 'admin'
   const [params, setParams] = useSearchParams()
   const [pets, setPets] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
@@ -74,7 +77,7 @@ export default function AdminPets() {
             onChange={(e) => setParams(q ? { q: e.target.value } : {}, { replace: true })}
             className="w-64"
           />
-          <Button variant="accent" onClick={() => setShowAdd(true)}>+ Add pet</Button>
+          {isAdmin && <Button variant="accent" onClick={() => setShowAdd(true)}>+ Add pet</Button>}
         </div>
       </div>
 

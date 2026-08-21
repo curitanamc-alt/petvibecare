@@ -10,7 +10,7 @@ const STEPS = [
   { label: 'Date & time', desc: 'Pick your preferred slot' },
   { label: 'Service', desc: 'What does your pet need?' },
   { label: 'Pet', desc: 'Who\'s visiting?' },
-  { label: 'Confirm', desc: 'Review & book' },
+  { label: 'Review', desc: 'Check details & submit' },
 ]
 
 const emptyPet = { name: '', species: 'dog', breed: '', gender: 'female', birthdate: '', weight_kg: '' }
@@ -92,8 +92,11 @@ export default function Book() {
           <div className="mx-auto mb-8 grid h-24 w-24 place-items-center rounded-full bg-sage-100">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0a4d52" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
           </div>
-          <h1 className="text-3xl font-extrabold text-charcoal-900">You're all set!</h1>
-          <p className="mt-3 text-charcoal-500">Confirmation sent to {user.email}</p>
+          <h1 className="text-3xl font-extrabold text-charcoal-900">Request received!</h1>
+          <p className="mt-3 text-charcoal-500">
+            Your booking is <span className="font-semibold text-amber-600">pending clinic confirmation</span> —
+            the clinic reviews every online booking and you'll be notified once it's approved.
+          </p>
 
           <div className="mx-auto mt-10 max-w-sm rounded-2xl bg-sage-50 p-8">
             <p className="text-xs font-bold uppercase tracking-wider text-charcoal-400">Reference number</p>
@@ -358,6 +361,10 @@ export default function Book() {
                 </div>
               ))}
             </div>
+            <p className="mt-4 rounded-xl bg-sage-50 px-5 py-3.5 text-xs leading-relaxed text-charcoal-500">
+              💳 Pay at the clinic — the final price is confirmed after the consultation.
+              {selectedService.weight_tier && selectedService.weight_tier !== 'any' ? ' Grooming prices depend on your pet\u2019s size and weight.' : ''}
+            </p>
 
             {(selectedService.requires_fasting || selectedService.requires_anesthesia || selectedService.weight_requirement || selectedService.recovery_time_hours) && (
               <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-50 p-5">
@@ -398,7 +405,7 @@ export default function Book() {
             </Button>
           ) : (
             <Button variant="accent" size="lg" disabled={busy} onClick={submit}>
-              {busy ? 'Booking…' : '✓ Confirm booking'}
+              {busy ? 'Submitting…' : '✓ Submit booking request'}
             </Button>
           )}
         </div>

@@ -41,9 +41,13 @@ const surgery = services.body.find((s) => s.category === 'Veterinary Surgery' &&
 const denied = await j('/bookings', { method: 'POST', token: ct, body: { pet_id: me.body.pets[0].pet_id, service_id: surgery.service_id, booking_date: tomorrow, booking_time: '16:00' } })
 check('admin-only service blocked for client', denied.status === 403)
 
+// suspended client is blocked at login (403), even with a valid password
+const susp = await j('/auth/login', { method: 'POST', body: { email: 'ramon.b@example.com', password: 'password123' } })
+check('suspended client blocked', susp.status === 403)
+
 // admin auth + stats + actions
 const ad = await j('/auth/login', { method: 'POST', body: { email: 'admin@petvibe.ph', password: 'password123' } })
-check('admin login', ad.status === 200 && ad.body.role === 'staff')
+check('admin login', ad.status === 200 && ad.body.role === 'admin')
 const at = ad.body.token
 const stats = await j('/admin/stats', { token: at })
 check('admin stats', stats.status === 200 && typeof stats.body.totalPets === 'number')
